@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, MapPin, Clock, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { Plus, MapPin, Clock, ChevronRight, Edit2, Trash2, Settings } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
+import SettingsModal from '../components/SettingsModal';
 
 export default function Dashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [formData, setFormData] = useState({ title: '', date: '', location: '', meeting_point: '', description: '', response_deadline: '' });
   
@@ -93,13 +95,22 @@ export default function Dashboard() {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Events</h1>
-        <button
-          onClick={openNew}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-black transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          Neues Event
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
+          >
+            <Settings className="w-4 h-4" />
+            Einstellungen
+          </button>
+          <button
+            onClick={openNew}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-black transition-colors text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Neues Event
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -195,6 +206,11 @@ export default function Dashboard() {
         message="Möchtest du dieses Event wirklich löschen? Alle Einladungen und Antworten werden ebenfalls unwiderruflich gelöscht."
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
+      />
+
+      <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
       />
     </div>
   );

@@ -68,6 +68,12 @@ const respondSchema = z.object({
   guests_count: z.number().min(0).max(10).optional().default(0)
 });
 
+const settingsSchema = z.object({
+  username: z.string().min(1, 'Benutzername ist erforderlich'),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().optional()
+});
+
 // --- AUTH ROUTES ---
 const authRouter = Router();
 authRouter.post('/login', loginLimiter, (req, res) => {
@@ -212,6 +218,52 @@ adminRouter.get('/stats', (req, res) => {
     persons: totalPersons.count,
     invites: totalInvites.count
   });
+});
+
+// Settings
+adminRouter.get('/settings', (req: any, res) => {
+  const user = db.prepare('SELECT username FROM admin_users WHERE id = ?').get(req.admin.id) as any;
+  if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+  res.json({ username: user.username });
+});
+
+adminRouter.put('/settings', (req: any, res) => {
+  try {
+    const { username, currentPassword, newPassword } = settingsSchema.parse(req.body);
+    
+    const user = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.admin.id) as any;
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Aktuelles Passwort wird benötigt' });
+      }
+      if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
+        return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
+      }
+      
+      const newHash = bcrypt.hashSync(newPassword, 10);
+      db.prepare('UPDATE admin_users SET username = ?, password_hash = ? WHERE id = ?')
+        .run(username, newHash, req.admin.id);
+    } else {
+      db.prepare('UPDATE admin_users SET username = ? WHERE id = ?')
+        .run(username, req.admin.id);
+    }
+
+    const token = jwt.sign({ id: req.admin.id, username: username }, JWT_SECRET, { expiresIn: '7d' });
+    res.cookie('admin_token', token, { 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: isProd ? 'lax' : 'none' 
+    });
+
+    res.json({ success: true });
+  } catch (e: any) {
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(400).json({ error: 'Benutzername ist bereits vergeben' });
+    }
+    res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
+  }
 });
 
 apiRouter.use('/admin', adminRouter);
