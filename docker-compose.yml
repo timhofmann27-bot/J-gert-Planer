@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    volumes:
+      - ./data.db:/app/data.db
+    environment:
+      - NODE_ENV=production
+      - ADMIN_PASSWORD=admin123
+      - JWT_SECRET=change_me_in_production_to_something_long_and_random
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jtorga.rule=Host(`jt-orga.pro`) || Host(`www.jt-orga.pro`)"
+      - "traefik.http.routers.jtorga.entrypoints=websecure"
+      - "traefik.http.routers.jtorga.tls.certresolver=myresolver"
+      - "traefik.http.services.jtorga.loadbalancer.server.port=3000"
+    restart: always
