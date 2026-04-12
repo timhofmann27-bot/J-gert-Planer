@@ -1,19 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function Persons() {
   const [persons, setPersons] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingPerson, setEditingPerson] = useState<any>(null);
   const [formData, setFormData] = useState({ name: '', notes: '' });
+  
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchPersons();
   }, []);
 
   const fetchPersons = async () => {
-    const res = await fetch('/api/admin/persons');
-    if (res.ok) setPersons(await res.json());
+    try {
+      const res = await fetch('/api/admin/persons');
+      if (res.ok) setPersons(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden der Personen');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,22 +29,40 @@ export default function Persons() {
     const url = editingPerson ? `/api/admin/persons/${editingPerson.id}` : '/api/admin/persons';
     const method = editingPerson ? 'PUT' : 'POST';
 
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Fehler beim Speichern');
+      }
 
-    setShowModal(false);
-    setEditingPerson(null);
-    setFormData({ name: '', notes: '' });
-    fetchPersons();
+      toast.success(editingPerson ? 'Person aktualisiert' : 'Person angelegt');
+      setShowModal(false);
+      setEditingPerson(null);
+      setFormData({ name: '', notes: '' });
+      fetchPersons();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Person wirklich löschen? Alle Einladungen dieser Person werden ebenfalls gelöscht.')) return;
-    await fetch(`/api/admin/persons/${id}`, { method: 'DELETE' });
-    fetchPersons();
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const res = await fetch(`/api/admin/persons/${deleteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Fehler beim Löschen');
+      toast.success('Person gelöscht');
+      fetchPersons();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   const openEdit = (person: any) => {
@@ -84,8 +110,8 @@ export default function Persons() {
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button 
-                  onClick={() => handleDelete(person.id)}
-                  className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  onClick={() => setDeleteId(person.id)}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                   title="Löschen"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -102,8 +128,8 @@ export default function Persons() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-4">{editingPerson ? 'Person bearbeiten' : 'Neue Person'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -133,6 +159,14 @@ export default function Persons() {
           </div>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={deleteId !== null}
+        title="Person löschen"
+        message="Möchtest du diese Person wirklich löschen? Alle Einladungen dieser Person werden ebenfalls unwiderruflich gelöscht."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

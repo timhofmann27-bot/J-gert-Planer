@@ -4,7 +4,7 @@ services:
   app:
     build: .
     volumes:
-      - ./data.db:/app/data.db
+      - ./data:/app/data
     environment:
       - NODE_ENV=production
       - ADMIN_PASSWORD=admin123

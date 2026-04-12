@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Users, CheckCircle, XCircle, HelpCircle, Clock, Copy, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, XCircle, HelpCircle, Clock, Copy, Trash2, Plus, MapPin } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -11,6 +13,8 @@ export default function EventDetails() {
   const [persons, setPersons] = useState<any[]>([]);
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [filter, setFilter] = useState('all');
+  
+  const [deleteInviteeId, setDeleteInviteeId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchEvent();
@@ -19,49 +23,74 @@ export default function EventDetails() {
   }, [id]);
 
   const fetchEvent = async () => {
-    const res = await fetch(`/api/admin/events/${id}`);
-    if (res.ok) setEvent(await res.json());
+    try {
+      const res = await fetch(`/api/admin/events/${id}`);
+      if (res.ok) setEvent(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden des Events');
+    }
   };
 
   const fetchInvites = async () => {
-    const res = await fetch(`/api/admin/events/${id}/invites`);
-    if (res.ok) setInvites(await res.json());
+    try {
+      const res = await fetch(`/api/admin/events/${id}/invites`);
+      if (res.ok) setInvites(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden der Einladungen');
+    }
   };
 
   const fetchPersons = async () => {
-    const res = await fetch('/api/admin/persons');
-    if (res.ok) setPersons(await res.json());
+    try {
+      const res = await fetch('/api/admin/persons');
+      if (res.ok) setPersons(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden der Personen');
+    }
   };
 
   const handleAddInvitee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPersonId) return;
     
-    const res = await fetch(`/api/admin/events/${id}/invites`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ person_id: selectedPersonId })
-    });
-    
-    if (res.ok) {
-      setSelectedPersonId('');
-      fetchInvites();
-    } else {
-      const err = await res.json();
-      alert(err.error || 'Fehler beim Hinzufügen');
+    try {
+      const res = await fetch(`/api/admin/events/${id}/invites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: Number(selectedPersonId) })
+      });
+      
+      if (res.ok) {
+        setSelectedPersonId('');
+        toast.success('Person eingeladen');
+        fetchInvites();
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Fehler beim Hinzufügen');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
     }
   };
 
-  const handleDeleteInvitee = async (inviteeId: number) => {
-    if (!confirm('Wirklich löschen?')) return;
-    await fetch(`/api/admin/events/${id}/invites/${inviteeId}`, { method: 'DELETE' });
-    fetchInvites();
+  const handleDeleteInvitee = async () => {
+    if (!deleteInviteeId) return;
+    try {
+      const res = await fetch(`/api/admin/events/${id}/invites/${deleteInviteeId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Fehler beim Löschen');
+      toast.success('Einladung gelöscht');
+      fetchInvites();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeleteInviteeId(null);
+    }
   };
 
   const copyLink = (token: string) => {
     const url = `${window.location.origin}/invite/${token}`;
     navigator.clipboard.writeText(url);
-    alert('Link kopiert!');
+    toast.success('Link kopiert!');
   };
 
   if (!event) return <div className="p-8 text-center">Lade...</div>;
@@ -90,8 +119,14 @@ export default function EventDetails() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{event.title}</h1>
-            <div className="text-gray-500 flex items-center gap-4 text-sm">
-              <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {format(parseISO(event.date), 'EEEE, dd.MM.yyyy HH:mm', { locale: de })}</span>
+            <div className="text-gray-500 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {format(parseISO(event.date), 'EEEE, dd.MM.yyyy HH:mm', { locale: de })}</span>
+              <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {event.location}</span>
+              {event.meeting_point && (
+                <span className="flex items-center gap-1.5 text-gray-900 font-medium">
+                  <span className="text-gray-400 font-normal">Treffpunkt:</span> {event.meeting_point}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -198,8 +233,8 @@ export default function EventDetails() {
                   <span className="hidden sm:inline">Link</span>
                 </button>
                 <button 
-                  onClick={() => handleDeleteInvitee(invitee.id)}
-                  className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  onClick={() => setDeleteInviteeId(invitee.id)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                   title="Einladung löschen"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -214,6 +249,14 @@ export default function EventDetails() {
           )}
         </div>
       </div>
+
+      <ConfirmModal 
+        isOpen={deleteInviteeId !== null}
+        title="Einladung löschen"
+        message="Möchtest du diese Einladung wirklich löschen? Der Link wird ungültig und die Antwort der Person geht verloren."
+        onConfirm={handleDeleteInvitee}
+        onCancel={() => setDeleteInviteeId(null)}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@
  */
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -15,6 +16,7 @@ import PublicInvite from './pages/PublicInvite';
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/invite/:token" element={<PublicInvite />} />

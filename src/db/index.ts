@@ -1,9 +1,15 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-const dbPath = path.join(process.cwd(), 'data.db');
+const dataDir = path.join(process.cwd(), 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, 'data.db');
 export const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
@@ -29,6 +35,7 @@ db.exec(`
     description TEXT,
     date TEXT NOT NULL,
     location TEXT NOT NULL,
+    meeting_point TEXT,
     response_deadline TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -50,40 +57,21 @@ db.exec(`
   );
 `);
 
+// Add meeting_point column if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE events ADD COLUMN meeting_point TEXT');
+} catch (e: any) {
+  // Ignore error if column already exists
+  if (!e.message.includes('duplicate column name')) {
+    console.error('Error adding meeting_point column:', e);
+  }
+}
+
 // Create default admin if not exists
 const adminExists = db.prepare('SELECT 1 FROM admin_users LIMIT 1').get();
 if (!adminExists) {
   const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
   const hash = bcrypt.hashSync(defaultPassword, 10);
   db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)').run('admin', hash);
-  console.log('Default admin created. Username: admin, Password:', defaultPassword);
-}
-
-// Create demo event if no events exist
-const eventExists = db.prepare('SELECT 1 FROM events LIMIT 1').get();
-if (!eventExists) {
-  const futureDate = new Date();
-  futureDate.setDate(futureDate.getDate() + 28); // 4 weeks
-  const dateStr = futureDate.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
-  
-  const eventStmt = db.prepare('INSERT INTO events (title, description, date, location) VALUES (?, ?, ?, ?)');
-  const eventInfo = eventStmt.run(
-    'Wanderung im Taunus', 
-    'Wir machen eine entspannte Wanderung auf den großen Feldberg. Bitte festes Schuhwerk und etwas Proviant mitbringen. Wir laufen ca. 3-4 Stunden.',
-    dateStr, 
-    'Feldberg, Taunus'
-  );
-  const eventId = eventInfo.lastInsertRowid;
-  
-  const personStmt = db.prepare('INSERT INTO persons (name, notes) VALUES (?, ?)');
-  const p1 = personStmt.run('Anna Müller', 'Bringt oft Kuchen mit').lastInsertRowid;
-  const p2 = personStmt.run('Max Mustermann', 'Kollege').lastInsertRowid;
-  const p3 = personStmt.run('Julia Schmidt', '').lastInsertRowid;
-  const p4 = personStmt.run('Tom Weber', '').lastInsertRowid;
-
-  const inviteeStmt = db.prepare('INSERT INTO invitees (event_id, person_id, name_snapshot, token, status, comment) VALUES (?, ?, ?, ?, ?, ?)');
-  inviteeStmt.run(eventId, p1, 'Anna Müller', crypto.randomBytes(16).toString('hex'), 'yes', 'Ich freue mich! Bringe Kuchen mit.');
-  inviteeStmt.run(eventId, p2, 'Max Mustermann', crypto.randomBytes(16).toString('hex'), 'maybe', 'Weiß noch nicht genau, ob ich arbeiten muss.');
-  inviteeStmt.run(eventId, p3, 'Julia Schmidt', crypto.randomBytes(16).toString('hex'), 'no', 'Bin leider im Urlaub.');
-  inviteeStmt.run(eventId, p4, 'Tom Weber', crypto.randomBytes(16).toString('hex'), 'pending', null);
+  console.log('Default admin created. Username: admin');
 }

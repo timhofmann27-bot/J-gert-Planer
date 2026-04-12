@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import toast from 'react-hot-toast';
 
 export default function PublicInvite() {
   const { token } = useParams();
@@ -32,21 +33,25 @@ export default function PublicInvite() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!status) {
-      alert('Bitte wähle eine Antwort aus.');
+      toast.error('Bitte wähle eine Antwort aus.');
       return;
     }
 
-    const res = await fetch(`/api/public/invite/${token}/respond`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, comment, guests_count: guestsCount })
-    });
+    try {
+      const res = await fetch(`/api/public/invite/${token}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, comment, guests_count: guestsCount })
+      });
 
-    if (res.ok) {
-      setSuccess(true);
-    } else {
-      const err = await res.json();
-      alert(err.error || 'Fehler beim Speichern.');
+      if (res.ok) {
+        setSuccess(true);
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Fehler beim Speichern.');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
     }
   };
 
@@ -70,7 +75,7 @@ export default function PublicInvite() {
   if (success) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center max-w-md w-full">
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center max-w-md w-full animate-in fade-in zoom-in duration-300">
           <CheckCircle className="w-16 h-16 text-gray-900 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Vielen Dank, {invitee.name}!</h1>
           <p className="text-gray-600 mb-6">Deine Antwort wurde erfolgreich gespeichert.</p>

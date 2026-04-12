@@ -3,21 +3,28 @@ import { Link } from 'react-router-dom';
 import { Plus, MapPin, Clock, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function Dashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
-  const [formData, setFormData] = useState({ title: '', date: '', location: '', description: '', response_deadline: '' });
+  const [formData, setFormData] = useState({ title: '', date: '', location: '', meeting_point: '', description: '', response_deadline: '' });
+  
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchEvents();
   }, []);
 
   const fetchEvents = async () => {
-    const res = await fetch('/api/admin/events');
-    const data = await res.json();
-    setEvents(data);
+    try {
+      const res = await fetch('/api/admin/events');
+      if (res.ok) setEvents(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden der Events');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,24 +32,40 @@ export default function Dashboard() {
     const url = editingEvent ? `/api/admin/events/${editingEvent.id}` : '/api/admin/events';
     const method = editingEvent ? 'PUT' : 'POST';
 
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Fehler beim Speichern');
+      }
 
-    setShowModal(false);
-    setEditingEvent(null);
-    setFormData({ title: '', date: '', location: '', description: '', response_deadline: '' });
-    fetchEvents();
+      toast.success(editingEvent ? 'Event aktualisiert' : 'Event erstellt');
+      setShowModal(false);
+      setEditingEvent(null);
+      setFormData({ title: '', date: '', location: '', meeting_point: '', description: '', response_deadline: '' });
+      fetchEvents();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!confirm('Event wirklich löschen? Alle Einladungen werden ebenfalls gelöscht.')) return;
-    await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
-    fetchEvents();
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const res = await fetch(`/api/admin/events/${deleteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Fehler beim Löschen');
+      toast.success('Event gelöscht');
+      fetchEvents();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   const openEdit = (e: React.MouseEvent, event: any) => {
@@ -53,6 +76,7 @@ export default function Dashboard() {
       title: event.title, 
       date: event.date, 
       location: event.location, 
+      meeting_point: event.meeting_point || '',
       description: event.description || '', 
       response_deadline: event.response_deadline || '' 
     });
@@ -61,7 +85,7 @@ export default function Dashboard() {
 
   const openNew = () => {
     setEditingEvent(null);
-    setFormData({ title: '', date: '', location: '', description: '', response_deadline: '' });
+    setFormData({ title: '', date: '', location: '', meeting_point: '', description: '', response_deadline: '' });
     setShowModal(true);
   };
 
@@ -89,7 +113,7 @@ export default function Dashboard() {
               <button onClick={(e) => openEdit(e, event)} className="p-1.5 bg-white shadow-sm border border-gray-200 text-gray-500 hover:text-gray-900 rounded-md">
                 <Edit2 className="w-4 h-4" />
               </button>
-              <button onClick={(e) => handleDelete(e, event.id)} className="p-1.5 bg-white shadow-sm border border-gray-200 text-gray-500 hover:text-gray-900 rounded-md">
+              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteId(event.id); }} className="p-1.5 bg-white shadow-sm border border-gray-200 text-gray-500 hover:text-red-600 rounded-md">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -127,8 +151,8 @@ export default function Dashboard() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <h2 className="text-xl font-bold mb-4">{editingEvent ? 'Event bearbeiten' : 'Neues Event'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -142,6 +166,10 @@ export default function Dashboard() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
                 <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Treffpunkt (optional)</label>
+                <input type="text" value={formData.meeting_point} onChange={e => setFormData({...formData, meeting_point: e.target.value})} className="w-full border border-gray-300 rounded-md p-2" placeholder="z.B. Parkplatz am Zoo" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung (optional)</label>
@@ -160,6 +188,14 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={deleteId !== null}
+        title="Event löschen"
+        message="Möchtest du dieses Event wirklich löschen? Alle Einladungen und Antworten werden ebenfalls unwiderruflich gelöscht."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }
