@@ -49,6 +49,7 @@ const loginLimiter = rateLimit({
   message: { error: 'Zu viele Login-Versuche. Bitte in 15 Minuten erneut versuchen.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false
 });
 
 // --- SCHEMAS ---

@@ -95,11 +95,18 @@ try {
   }
 }
 
-// Create default admin if not exists
-const adminExists = db.prepare('SELECT 1 FROM admin_users LIMIT 1').get();
-if (!adminExists) {
-  const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
-  const hash = bcrypt.hashSync(defaultPassword, 10);
-  db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)').run('admin', hash);
-  console.log('Default admin created. Username: admin');
+// Create default admins if not exists
+const defaultAdmins = [
+  { username: 'admin', password: process.env.ADMIN_PASSWORD || 'admin123' },
+  { username: 'admin2', password: 'admin2_password' },
+  { username: 'admin3', password: 'admin3_password' }
+];
+
+for (const admin of defaultAdmins) {
+  const exists = db.prepare('SELECT 1 FROM admin_users WHERE username = ?').get(admin.username);
+  if (!exists) {
+    const hash = bcrypt.hashSync(admin.password, 10);
+    db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)').run(admin.username, hash);
+    console.log(`Admin created: ${admin.username}`);
+  }
 }

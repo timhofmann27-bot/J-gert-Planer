@@ -20,8 +20,10 @@ export default function NotificationsMenu({ apiPrefix }: NotificationsMenuProps)
       if (res.ok) {
         setNotifications(await res.json());
       }
-    } catch (e) {
-      console.error('Failed to fetch notifications', e);
+    } catch (e: any) {
+      if (e.name !== 'TypeError' && e.message !== 'Failed to fetch') {
+        console.error('Failed to fetch notifications', e);
+      }
     }
   };
 
