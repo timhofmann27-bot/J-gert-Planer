@@ -152,30 +152,30 @@ export default function Dashboard() {
         </div>
         
         <h3 className="font-bold text-xl text-white mb-3 pr-16 group-hover:text-blue-400 transition-colors">
-          {aktion.title}
+          {aktion?.title}
         </h3>
         <div className="space-y-3 text-sm text-white/60 flex-1">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
               <Clock className="w-4 h-4 text-white/80" />
             </div>
-            <span className="font-medium">{format(parseISO(aktion.date), 'EEEE, dd.MM.yyyy HH:mm', { locale: de })}</span>
+            <span className="font-medium">{aktion?.date ? format(parseISO(aktion.date), 'EEEE, dd.MM.yyyy HH:mm', { locale: de }) : '-'}</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
               <MapPin className="w-4 h-4 text-white/80" />
             </div>
-            <span className="font-medium">{aktion.location}</span>
+            <span className="font-medium">{aktion?.location}</span>
           </div>
-          {aktion.response_deadline && (
+          {aktion?.response_deadline && (
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
                 <Hourglass className="w-4 h-4 text-white/80" />
               </div>
               <span className="font-medium">
-                {isFuture(parseISO(aktion.response_deadline)) 
+                {aktion.response_deadline && isFuture(parseISO(aktion.response_deadline)) 
                   ? `Frist: ${formatDistanceToNow(parseISO(aktion.response_deadline), { addSuffix: true, locale: de })}`
-                  : 'Frist abgelaufen'}
+                  : aktion.response_deadline ? 'Frist abgelaufen' : ''}
               </span>
             </div>
           )}
@@ -184,7 +184,7 @@ export default function Dashboard() {
               <Users className="w-4 h-4 text-white/80" />
             </div>
             <span className="text-white font-semibold">
-              {aktion.yes_count || 0} Zusagen <span className="text-white/40 font-normal">von {aktion.total_invites || 0}</span>
+              {aktion?.yes_count || 0} Zusagen <span className="text-white/40 font-normal">von {aktion?.total_invites || 0}</span>
             </span>
           </div>
         </div>

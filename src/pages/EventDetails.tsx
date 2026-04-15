@@ -425,7 +425,7 @@ export default function EventDetails() {
                 </div>
                 <div>
                   <div className="text-[9px] font-black text-white/40 uppercase tracking-wider">Erstellt</div>
-                  <div className="text-xs font-bold text-white">{aktion.created_at ? format(parseISO(aktion.created_at), 'dd.MM.yyyy') : '-'}</div>
+                  <div className="text-xs font-bold text-white">{aktion?.created_at ? format(parseISO(aktion.created_at), 'dd.MM.yyyy') : '-'}</div>
                 </div>
               </div>
               {aktion?.response_deadline && (

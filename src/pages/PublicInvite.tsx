@@ -105,7 +105,7 @@ export default function PublicInvite() {
   if (!data) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Lade...</div>;
 
   const { aktion, invitee } = data;
-  const isDeadlinePassed = aktion.response_deadline && new Date() > new Date(aktion.response_deadline);
+  const isDeadlinePassed = aktion?.response_deadline && new Date() > new Date(aktion.response_deadline);
 
   if (success) {
     return (
@@ -171,8 +171,8 @@ export default function PublicInvite() {
         >
           <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
           <div className="bg-white/5 p-8 text-center border-b border-white/10 relative z-10">
-            <h1 className="text-3xl font-bold mb-3 text-white tracking-tight">{aktion.title}</h1>
-            <p className="text-white/60 font-medium text-lg">Hallo {invitee.name_snapshot || invitee.name}, du bist eingeladen!</p>
+            <h1 className="text-3xl font-bold mb-3 text-white tracking-tight">{aktion?.title}</h1>
+            <p className="text-white/60 font-medium text-lg">Hallo {invitee?.name_snapshot || invitee?.name}, du bist eingeladen!</p>
           </div>
           
           <div className="p-8 space-y-6 relative z-10">
@@ -182,8 +182,8 @@ export default function PublicInvite() {
               </div>
               <div>
                 <div className="font-bold text-white text-lg">Wann?</div>
-                <div className="text-white/60 font-medium">{format(parseISO(aktion.date), 'EEEE, dd. MMMM yyyy', { locale: de })}</div>
-                <div className="text-white/60 font-medium">{format(parseISO(aktion.date), 'HH:mm', { locale: de })} Uhr</div>
+                <div className="text-white/60 font-medium">{aktion?.date ? format(parseISO(aktion.date), 'EEEE, dd. MMMM yyyy', { locale: de }) : '-'}</div>
+                <div className="text-white/60 font-medium">{aktion?.date ? format(parseISO(aktion.date), 'HH:mm', { locale: de }) : '-'} Uhr</div>
               </div>
             </div>
             
@@ -193,14 +193,14 @@ export default function PublicInvite() {
               </div>
               <div>
                 <div className="font-bold text-white text-lg">Wo?</div>
-                <div className="text-white/60 font-medium">{aktion.location}</div>
-                {aktion.meeting_point && (
+                <div className="text-white/60 font-medium">{aktion?.location}</div>
+                {aktion?.meeting_point && (
                   <div className="text-sm text-white/40 mt-1 font-medium">Treffpunkt: {aktion.meeting_point}</div>
                 )}
               </div>
             </div>
 
-            {aktion.description && (
+            {aktion?.description && (
               <div className="pt-6 border-t border-white/10 mt-6">
                 <div className="font-bold text-white mb-2 text-lg">Details</div>
                 <p className="text-white/60 text-sm whitespace-pre-wrap leading-relaxed font-medium">{aktion.description}</p>
