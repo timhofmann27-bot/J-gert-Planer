@@ -2,66 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
-import { Calendar, Lock, User, Shield, Fingerprint } from 'lucide-react';
-import { startAuthentication } from '@simplewebauthn/browser';
+import { Calendar, Lock, User, Shield } from 'lucide-react';
 
 export default function Login() {
   const [loginType, setLoginType] = useState<'person' | 'admin'>('person');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isWebAuthnLoading, setIsWebAuthnLoading] = useState(false);
   const navigate = useNavigate();
-
-  const handleWebAuthnLogin = async () => {
-    if (!username) {
-      toast.error('Bitte gib zuerst deinen Benutzernamen/E-Mail ein');
-      return;
-    }
-    
-    setIsWebAuthnLoading(true);
-    try {
-      const resp = await fetch('/api/auth/webauthn/generate-authentication-options', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
-      });
-      
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error || 'Fehler beim Generieren der Optionen');
-      }
-      
-      const options = await resp.json();
-      const asseResp = await startAuthentication(options);
-
-      const verificationResp = await fetch('/api/auth/webauthn/verify-authentication', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, response: asseResp }),
-      });
-
-      if (!verificationResp.ok) {
-        throw new Error('Fehler bei der Verifizierung');
-      }
-
-      const result = await verificationResp.json();
-      toast.success('Erfolgreich angemeldet');
-      if (result.userType === 'admin') {
-        navigate('/');
-      } else {
-        navigate('/dashboard');
-      }
-    } catch (e: any) {
-      if (e.name === 'NotAllowedError') {
-        toast.error('Anmeldung abgebrochen');
-      } else {
-        toast.error(e.message || 'Biometrische Anmeldung fehlgeschlagen');
-      }
-    } finally {
-      setIsWebAuthnLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,7 +105,7 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-5 relative z-10">
             <div className="space-y-2">
               <label className="text-xs font-bold text-white/50 uppercase tracking-widest ml-1">
-                {loginType === 'admin' ? 'Benutzername' : 'Name oder E-Mail'}
+                Benutzername
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -169,7 +117,7 @@ export default function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent transition-all focus:bg-black/40"
-                  placeholder={loginType === 'admin' ? 'admin' : 'max.mustermann@mail.de'}
+                  placeholder={loginType === 'admin' ? 'admin' : 'Benutzername'}
                 />
               </div>
             </div>
@@ -194,7 +142,7 @@ export default function Login() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              disabled={isLoading || isWebAuthnLoading}
+              disabled={isLoading}
               type="submit"
               className="w-full bg-white text-black font-bold py-4 rounded-2xl mt-6 hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.3)]"
             >
@@ -203,27 +151,6 @@ export default function Login() {
               ) : (
                 'Anmelden'
               )}
-            </motion.button>
-
-            <div className="relative mt-6 mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase tracking-widest">
-                <span className="bg-[#1a1a1a] px-3 py-1 rounded-full text-white/40 border border-white/10">Oder</span>
-              </div>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              disabled={isLoading || isWebAuthnLoading}
-              type="button"
-              onClick={handleWebAuthnLogin}
-              className="w-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold py-4 rounded-2xl hover:bg-blue-500/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <Fingerprint className="w-5 h-5" />
-              {isWebAuthnLoading ? 'Bitte warten...' : 'Mit Fingerabdruck / Face ID anmelden'}
             </motion.button>
           </form>
         </div>

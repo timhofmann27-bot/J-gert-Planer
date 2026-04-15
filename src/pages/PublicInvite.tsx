@@ -1,10 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User, AlertCircle } from 'lucide-react';
+import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+
+function Countdown({ deadline }: { deadline: string }) {
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  useEffect(() => {
+    const target = parseISO(deadline);
+    const update = () => {
+      const diff = differenceInSeconds(target, new Date());
+      setTimeLeft(Math.max(0, diff));
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [deadline]);
+
+  if (timeLeft === 0) return null;
+
+  const days = Math.floor(timeLeft / (24 * 3600));
+  const hours = Math.floor((timeLeft % (24 * 3600)) / 3600);
+  const minutes = Math.floor((timeLeft % 3600) / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0,
+        scale: timeLeft < 86400 ? [1, 1.02, 1] : 1
+      }}
+      transition={{ 
+        scale: { duration: 2, repeat: Infinity },
+        default: { duration: 0.5 }
+      }}
+      className="bg-red-500/10 border border-red-500/20 rounded-3xl p-6 backdrop-blur-md flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden group"
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none" />
+      <motion.div 
+        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2"
+      >
+        <AlertCircle className="w-4 h-4" /> Frist läuft ab
+      </motion.div>
+      <div className="flex gap-4 font-mono text-3xl font-black text-white">
+        {days > 0 && (
+          <div className="flex flex-col items-center">
+            <span className="text-white">{days}</span>
+            <span className="text-[10px] text-white/30 uppercase tracking-widest mt-1">Tage</span>
+          </div>
+        )}
+        <div className="flex flex-col items-center">
+          <span className="text-white">{hours.toString().padStart(2, '0')}</span>
+          <span className="text-[10px] text-white/30 uppercase tracking-widest mt-1">Std</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-white">{minutes.toString().padStart(2, '0')}</span>
+          <span className="text-[10px] text-white/30 uppercase tracking-widest mt-1">Min</span>
+        </div>
+        <div className="flex flex-col items-center text-red-400">
+          <span className="text-red-400">{seconds.toString().padStart(2, '0')}</span>
+          <span className="text-[10px] text-red-400/30 uppercase tracking-widest mt-1">Sek</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function PublicInvite() {
   const { token } = useParams();
@@ -17,7 +84,7 @@ export default function PublicInvite() {
   const [guestsCount, setGuestsCount] = useState(0);
 
   // Profile setup state
-  const [setupEmail, setSetupEmail] = useState('');
+  const [setupUsername, setSetupUsername] = useState('');
   const [setupPassword, setSetupPassword] = useState('');
   const [isSettingUp, setIsSettingUp] = useState(false);
 
@@ -32,6 +99,12 @@ export default function PublicInvite() {
         setStatus(d.invitee.status === 'pending' ? '' : d.invitee.status);
         setComment(d.invitee.comment || '');
         setGuestsCount(d.invitee.guests_count || 0);
+        
+        // Suggest username if not set
+        if (!d.invitee.has_profile) {
+          const suggested = d.invitee.suggested_username || (d.invitee.name_snapshot || '').toLowerCase().replace(/\s+/g, '.');
+          setSetupUsername(suggested);
+        }
       })
       .catch(e => setError(e.message));
   }, [token]);
@@ -68,7 +141,7 @@ export default function PublicInvite() {
       const res = await fetch(`/api/public/invite/${token}/setup-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: setupEmail, password: setupPassword })
+        body: JSON.stringify({ username: setupUsername, password: setupPassword })
       });
 
       if (res.ok) {
@@ -210,6 +283,10 @@ export default function PublicInvite() {
         </motion.div>
 
         {/* Response Form */}
+        {aktion?.response_deadline && !isDeadlinePassed && !invitee.status && (
+          <Countdown deadline={aktion.response_deadline} />
+        )}
+
         <motion.form 
           initial={{ opacity: 0, y: 30, scale: 0.98 }} 
           animate={{ opacity: 1, y: 0, scale: 1 }} 
@@ -331,15 +408,15 @@ export default function PublicInvite() {
             
             <form onSubmit={handleSetupProfile} className="space-y-5">
               <div>
-                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">E-Mail Adresse</label>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Benutzername</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                   <input 
-                    type="email" 
+                    type="text" 
                     required 
-                    value={setupEmail}
-                    onChange={e => setSetupEmail(e.target.value)}
-                    placeholder="deine@email.de"
+                    value={setupUsername}
+                    onChange={e => setSetupUsername(e.target.value)}
+                    placeholder="Wähle einen Benutzernamen"
                     className="w-full bg-black border border-white/10 rounded-xl p-4 pl-12 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all font-medium"
                   />
                 </div>
@@ -376,15 +453,23 @@ export default function PublicInvite() {
               </div>
               <div>
                 <div className="font-bold text-white text-lg">Profil aktiv</div>
-                <div className="text-white/50 font-medium">Du kannst dich jederzeit einloggen.</div>
+                <div className="text-white/50 font-medium">Du hast bereits ein Profil.</div>
               </div>
             </div>
-            <Link 
-              to="/dashboard"
-              className="text-white font-bold text-sm hover:bg-white/10 px-4 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/10"
-            >
-              Dashboard <ArrowRight className="w-4 h-4" />
-            </Link>
+            <div className="flex gap-2">
+              <Link 
+                to="/login"
+                className="text-white/60 font-bold text-sm hover:bg-white/10 px-4 py-2 rounded-xl transition-colors border border-white/10"
+              >
+                Login
+              </Link>
+              <Link 
+                to="/dashboard"
+                className="text-white font-bold text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/10"
+              >
+                Dashboard <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </motion.div>
         )}
       </div>

@@ -5,7 +5,6 @@ import { db } from '../db/index.ts';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { webauthnRouter } from './webauthn.ts';
 
 export const apiRouter = Router();
 
@@ -70,6 +69,8 @@ const eventSchema = z.object({
 
 const personSchema = z.object({
   name: z.string().min(1, 'Name ist erforderlich'),
+  username: z.string().optional().nullable(),
+  email: z.string().email('Ungültige E-Mail Adresse').optional().nullable().or(z.literal('')),
   notes: z.string().optional().nullable()
 });
 
@@ -94,7 +95,7 @@ const settingsSchema = z.object({
 });
 
 const setupProfileSchema = z.object({
-  email: z.string().email('Ungültige E-Mail Adresse'),
+  username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen lang sein'),
   password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein')
 });
 
@@ -129,7 +130,6 @@ authRouter.post('/logout', (req, res) => {
 authRouter.get('/check', requireAuth, (req: any, res) => {
   res.json({ user: req.admin });
 });
-authRouter.use('/webauthn', webauthnRouter);
 apiRouter.use('/auth', authRouter);
 
 // --- ADMIN ROUTES ---
@@ -375,6 +375,19 @@ adminRouter.delete('/events/:id/invites/:inviteId', (req, res) => {
   res.json({ success: true });
 });
 
+adminRouter.put('/events/:id/invites/:inviteId/status', (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['yes', 'no', 'maybe', 'pending'].includes(status)) {
+      return res.status(400).json({ error: 'Ungültiger Status' });
+    }
+    db.prepare('UPDATE invitees SET status = ?, responded_at = CURRENT_TIMESTAMP WHERE id = ? AND event_id = ?').run(status, req.params.inviteId, req.params.id);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: 'Fehler beim Aktualisieren des Status' });
+  }
+});
+
 // Persons
 adminRouter.get('/persons', (req, res) => {
   const persons = db.prepare('SELECT * FROM persons ORDER BY name ASC').all();
@@ -382,21 +395,27 @@ adminRouter.get('/persons', (req, res) => {
 });
 adminRouter.post('/persons', (req, res) => {
   try {
-    const { name, notes } = personSchema.parse(req.body);
-    const stmt = db.prepare('INSERT INTO persons (name, notes) VALUES (?, ?)');
-    const info = stmt.run(name, notes || null);
+    const { name, username, email, notes } = personSchema.parse(req.body);
+    const stmt = db.prepare('INSERT INTO persons (name, username, email, notes) VALUES (?, ?, ?, ?)');
+    const info = stmt.run(name, username || null, email || null, notes || null);
     res.json({ id: info.lastInsertRowid });
   } catch (e: any) {
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vergeben' });
+    }
     res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
   }
 });
 adminRouter.put('/persons/:id', (req, res) => {
   try {
-    const { name, notes } = personSchema.parse(req.body);
-    const stmt = db.prepare('UPDATE persons SET name = ?, notes = ? WHERE id = ?');
-    stmt.run(name, notes || null, req.params.id);
+    const { name, username, email, notes } = personSchema.parse(req.body);
+    const stmt = db.prepare('UPDATE persons SET name = ?, username = ?, email = ?, notes = ? WHERE id = ?');
+    stmt.run(name, username || null, email || null, notes || null, req.params.id);
     res.json({ success: true });
   } catch (e: any) {
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(400).json({ error: 'Benutzername oder E-Mail bereits vergeben' });
+    }
     res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
   }
 });
@@ -522,7 +541,7 @@ const publicRouter = Router();
 publicRouter.post('/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
-    const person = db.prepare('SELECT * FROM persons WHERE email = ? OR name = ?').get(username, username) as any;
+    const person = db.prepare('SELECT * FROM persons WHERE username = ? OR name = ?').get(username, username) as any;
     if (!person || !person.password_hash || !bcrypt.compareSync(password, person.password_hash)) {
       return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
     }
@@ -554,7 +573,7 @@ publicRouter.get('/check', requirePersonAuth, (req: any, res) => {
 publicRouter.get('/dashboard', requirePersonAuth, (req: any, res) => {
   const personId = req.person.id;
   const invitations = db.prepare(`
-    SELECT i.*, e.title, e.date, e.location, e.description
+    SELECT i.*, e.title, e.date, e.location, e.description, e.response_deadline
     FROM invitees i
     JOIN events e ON i.event_id = e.id
     WHERE i.person_id = ?
@@ -565,7 +584,7 @@ publicRouter.get('/dashboard', requirePersonAuth, (req: any, res) => {
 
 publicRouter.get('/invite/:token', (req, res) => {
   const invitee = db.prepare(`
-    SELECT i.*, p.password_hash as has_profile 
+    SELECT i.*, p.password_hash as has_profile, p.username as suggested_username
     FROM invitees i 
     JOIN persons p ON i.person_id = p.id
     WHERE i.token = ?
@@ -584,7 +603,7 @@ publicRouter.get('/invite/:token', (req, res) => {
 
 publicRouter.post('/invite/:token/setup-profile', (req, res) => {
   try {
-    const { email, password } = setupProfileSchema.parse(req.body);
+    const { username, password } = setupProfileSchema.parse(req.body);
     const invitee = db.prepare('SELECT person_id FROM invitees WHERE token = ?').get(req.params.token) as any;
     if (!invitee || !invitee.person_id) return res.status(404).json({ error: 'Einladung nicht gefunden' });
 
@@ -592,7 +611,7 @@ publicRouter.post('/invite/:token/setup-profile', (req, res) => {
     if (person.password_hash) return res.status(400).json({ error: 'Profil bereits erstellt' });
 
     const hash = bcrypt.hashSync(password, 10);
-    db.prepare('UPDATE persons SET email = ?, password_hash = ? WHERE id = ?').run(email, hash, invitee.person_id);
+    db.prepare('UPDATE persons SET username = ?, password_hash = ? WHERE id = ?').run(username, hash, invitee.person_id);
 
     // Auto login after setup
     const token = jwt.sign({ id: person.id, name: person.name, type: 'person' }, JWT_SECRET, { expiresIn: '30d' });
@@ -605,7 +624,7 @@ publicRouter.post('/invite/:token/setup-profile', (req, res) => {
     res.json({ success: true });
   } catch (e: any) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return res.status(400).json({ error: 'E-Mail Adresse wird bereits verwendet' });
+      return res.status(400).json({ error: 'Benutzername wird bereits verwendet' });
     }
     res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
   }

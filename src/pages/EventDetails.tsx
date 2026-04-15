@@ -157,6 +157,21 @@ export default function EventDetails() {
     }
   };
 
+  const handleUpdateStatus = async (inviteeId: number, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/admin/events/${id}/invites/${inviteeId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (!res.ok) throw new Error('Fehler beim Aktualisieren');
+      toast.success('Status aktualisiert');
+      fetchInvites();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const handleResendInvite = async (inviteId: number) => {
     try {
       const res = await fetch(`/api/admin/events/${id}/invites/${inviteId}/resend`, { method: 'POST' });
@@ -359,10 +374,26 @@ export default function EventDetails() {
                             )}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
-                            {invitee.status === 'yes' && <span className="text-[10px] font-black uppercase text-green-400 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Zugesagt</span>}
-                            {invitee.status === 'no' && <span className="text-[10px] font-black uppercase text-red-400 flex items-center gap-1"><XCircle className="w-3 h-3"/> Abgesagt</span>}
-                            {invitee.status === 'maybe' && <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1"><HelpCircle className="w-3 h-3"/> Vielleicht</span>}
-                            {invitee.status === 'pending' && <span className="text-[10px] font-black uppercase text-white/40 flex items-center gap-1"><Clock className="w-3 h-3"/> Offen</span>}
+                            <select 
+                              value={invitee.status} 
+                              onChange={(e) => handleUpdateStatus(invitee.id, e.target.value)}
+                              className={`text-[9px] font-black uppercase px-2 py-1 rounded-md bg-black border transition-all cursor-pointer outline-none ${
+                                invitee.status === 'yes' ? 'text-green-400 border-green-500/30' :
+                                invitee.status === 'no' ? 'text-red-400 border-red-500/30' :
+                                invitee.status === 'maybe' ? 'text-amber-400 border-amber-500/30' :
+                                'text-white/40 border-white/10'
+                              }`}
+                            >
+                              <option value="pending">Offen</option>
+                              <option value="yes">Zugesagt</option>
+                              <option value="no">Abgesagt</option>
+                              <option value="maybe">Vielleicht</option>
+                            </select>
+                            {invitee.responded_at && (
+                              <span className="text-[8px] text-white/20 font-mono">
+                                {format(parseISO(invitee.responded_at), 'dd.MM. HH:mm')}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Eye, EyeOff, Settings, Fingerprint } from 'lucide-react';
+import { X, Eye, EyeOff, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { startRegistration } from '@simplewebauthn/browser';
 import { motion } from 'motion/react';
 
 interface Props {
@@ -18,7 +17,6 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isRegisteringWebAuthn, setIsRegisteringWebAuthn] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -36,34 +34,6 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
   }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const handleRegisterWebAuthn = async () => {
-    setIsRegisteringWebAuthn(true);
-    try {
-      const resp = await fetch('/api/auth/webauthn/generate-registration-options', { method: 'POST' });
-      if (!resp.ok) throw new Error('Fehler beim Generieren der Optionen');
-      const options = await resp.json();
-
-      const attResp = await startRegistration(options);
-
-      const verificationResp = await fetch('/api/auth/webauthn/verify-registration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(attResp),
-      });
-
-      if (!verificationResp.ok) throw new Error('Fehler bei der Verifizierung');
-      toast.success('Biometrische Anmeldung erfolgreich eingerichtet!');
-    } catch (e: any) {
-      if (e.name === 'NotAllowedError') {
-        toast.error('Registrierung abgebrochen');
-      } else {
-        toast.error(e.message || 'Fehler bei der Einrichtung');
-      }
-    } finally {
-      setIsRegisteringWebAuthn(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,22 +114,6 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
               onChange={e => setUsername(e.target.value)} 
               className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all" 
             />
-          </div>
-
-          <div className="pt-6 border-t border-white/10">
-            <h3 className="text-sm font-bold text-white mb-4">Biometrische Anmeldung</h3>
-            <p className="text-xs text-white/50 mb-4 leading-relaxed">
-              Richte Passkeys ein, um dich in Zukunft sicher und schnell mit deinem Fingerabdruck, Face ID oder Windows Hello anzumelden.
-            </p>
-            <button
-              type="button"
-              onClick={handleRegisterWebAuthn}
-              disabled={isRegisteringWebAuthn}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 font-bold transition-colors disabled:opacity-50"
-            >
-              <Fingerprint className="w-5 h-5" />
-              {isRegisteringWebAuthn ? 'Wird eingerichtet...' : 'Fingerabdruck / Face ID hinzufügen'}
-            </button>
           </div>
 
           <div className="pt-6 border-t border-white/10">

@@ -41,7 +41,7 @@ export default function AdminLayout() {
               <div className="w-8 h-8 bg-white text-black rounded-xl flex items-center justify-center">
                 <Calendar className="w-4 h-4" />
               </div>
-              AktionsPlaner
+              JT-ORGA
             </Link>
             <nav className="hidden sm:flex gap-1">
               {navItems.map(item => {

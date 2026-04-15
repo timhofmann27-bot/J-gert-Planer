@@ -25,6 +25,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS persons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    username TEXT UNIQUE,
     email TEXT UNIQUE,
     password_hash TEXT,
     notes TEXT,
@@ -68,24 +69,6 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS webauthn_credentials (
-    id TEXT PRIMARY KEY,
-    user_type TEXT NOT NULL,
-    user_id INTEGER NOT NULL,
-    public_key BLOB NOT NULL,
-    counter INTEGER NOT NULL,
-    transports TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS webauthn_challenges (
-    user_type TEXT NOT NULL,
-    user_id INTEGER NOT NULL,
-    challenge TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_type, user_id)
-  );
-
   CREATE TABLE IF NOT EXISTS event_invitation_steps (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL,
@@ -113,6 +96,15 @@ try {
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) {
     console.error('Error adding is_archived column:', e);
+  }
+}
+
+// Add username column if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE persons ADD COLUMN username TEXT UNIQUE');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) {
+    console.error('Error adding username column:', e);
   }
 }
 

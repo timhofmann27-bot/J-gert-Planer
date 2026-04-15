@@ -1,7 +1,7 @@
 node_modules
 dist
 data
-data.db*
-.env
 .git
-.DS_Store
+.env
+Dockerfile
+docker-compose.yml

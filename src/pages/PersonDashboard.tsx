@@ -1,11 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight, AlertCircle } from 'lucide-react';
+import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import NotificationsMenu from '../components/NotificationsMenu';
+
+function Countdown({ deadline }: { deadline: string }) {
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  useEffect(() => {
+    const target = parseISO(deadline);
+    const update = () => {
+      const diff = differenceInSeconds(target, new Date());
+      setTimeLeft(Math.max(0, diff));
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [deadline]);
+
+  if (timeLeft === 0) return null;
+
+  const days = Math.floor(timeLeft / (24 * 3600));
+  const hours = Math.floor((timeLeft % (24 * 3600)) / 3600);
+  const minutes = Math.floor((timeLeft % 3600) / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <motion.div 
+      animate={timeLeft < 86400 ? { 
+        scale: [1, 1.02, 1],
+        boxShadow: ["0 0 0px rgba(239, 68, 68, 0)", "0 0 20px rgba(239, 68, 68, 0.2)", "0 0 0px rgba(239, 68, 68, 0)"]
+      } : {}}
+      transition={{ duration: 2, repeat: Infinity }}
+      className="flex flex-col items-end justify-center px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-2xl backdrop-blur-md shrink-0"
+    >
+      <div className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+        <AlertCircle className="w-3 h-3" /> Frist läuft ab
+      </div>
+      <div className="flex gap-1.5 font-mono text-sm font-black text-white">
+        {days > 0 && (
+          <div className="flex flex-col items-center">
+            <span>{days}d</span>
+          </div>
+        )}
+        <div className="flex flex-col items-center">
+          <span>{hours.toString().padStart(2, '0')}h</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span>{minutes.toString().padStart(2, '0')}m</span>
+        </div>
+        <div className="flex flex-col items-center text-red-400">
+          <span>{seconds.toString().padStart(2, '0')}s</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function PersonDashboard() {
   const [user, setUser] = useState<any>(null);
@@ -97,9 +150,18 @@ export default function PersonDashboard() {
                 >
                   <Link 
                     to={`/invite/${inv.token}`}
-                    className="bg-[#111] p-6 rounded-[2rem] shadow-xl border border-amber-500/30 hover:border-amber-400 transition-all flex items-center justify-between group relative overflow-hidden"
+                    className={`bg-[#111] p-6 rounded-[2rem] shadow-xl border transition-all flex items-center justify-between group relative overflow-hidden ${
+                      inv.response_deadline && differenceInSeconds(parseISO(inv.response_deadline), new Date()) < 86400 
+                      ? 'border-red-500/50 shadow-red-500/10' 
+                      : 'border-amber-500/30 hover:border-amber-400'
+                    }`}
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
+                    {inv.response_deadline && differenceInSeconds(parseISO(inv.response_deadline), new Date()) < 86400 && (
+                      <div className="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-widest z-20 animate-pulse">
+                        Dringend
+                      </div>
+                    )}
                     <div className="flex items-start gap-5 relative z-10">
                       <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex flex-col items-center justify-center text-amber-400 shrink-0 border border-amber-500/20">
                         <span className="text-[10px] font-black uppercase tracking-widest">{format(parseISO(inv.date), 'MMM', { locale: de })}</span>
@@ -112,6 +174,11 @@ export default function PersonDashboard() {
                           <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {inv.location}</span>
                         </div>
                       </div>
+                      {inv.response_deadline && (
+                        <div className="ml-auto">
+                          <Countdown deadline={inv.response_deadline} />
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 relative z-10">
                       <span className="text-sm font-bold text-white/40 group-hover:text-amber-400 transition-colors hidden sm:block">Antworten</span>

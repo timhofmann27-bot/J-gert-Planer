@@ -12,7 +12,7 @@ export default function Members() {
   const [selectedAktionId, setSelectedAktionId] = useState('');
   const [isInviting, setIsInviting] = useState(false);
   const [editingMember, setEditingMember] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', notes: '' });
+  const [formData, setFormData] = useState({ name: '', username: '', email: '', notes: '' });
   
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -59,7 +59,7 @@ export default function Members() {
       toast.success(editingMember ? 'Mitglied aktualisiert' : 'Mitglied angelegt');
       setShowModal(false);
       setEditingMember(null);
-      setFormData({ name: '', notes: '' });
+      setFormData({ name: '', username: '', email: '', notes: '' });
       fetchMembers();
     } catch (e: any) {
       toast.error(e.message);
@@ -111,13 +111,18 @@ export default function Members() {
 
   const openEdit = (member: any) => {
     setEditingMember(member);
-    setFormData({ name: member.name, notes: member.notes || '' });
+    setFormData({ 
+      name: member.name, 
+      username: member.username || '', 
+      email: member.email || '', 
+      notes: member.notes || '' 
+    });
     setShowModal(true);
   };
 
   const openNew = () => {
     setEditingMember(null);
-    setFormData({ name: '', notes: '' });
+    setFormData({ name: '', username: '', email: '', notes: '' });
     setShowModal(true);
   };
 
@@ -221,12 +226,30 @@ export default function Members() {
             <h2 className="text-3xl font-bold mb-8 text-white tracking-tight relative z-10">{editingMember ? 'Mitglied bearbeiten' : 'Neues Mitglied'}</h2>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Name</label>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Anzeigename</label>
                 <input 
                   required 
                   type="text" 
                   value={formData.name} 
                   onChange={e => setFormData({...formData, name: e.target.value})} 
+                  className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all duration-200" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Benutzername (optional)</label>
+                <input 
+                  type="text" 
+                  value={formData.username} 
+                  onChange={e => setFormData({...formData, username: e.target.value})} 
+                  className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all duration-200" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">E-Mail (optional)</label>
+                <input 
+                  type="email" 
+                  value={formData.email} 
+                  onChange={e => setFormData({...formData, email: e.target.value})} 
                   className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition-all duration-200" 
                 />
               </div>
