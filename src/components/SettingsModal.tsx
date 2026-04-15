@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Eye, EyeOff, Settings } from 'lucide-react';
+import { X, Eye, EyeOff, Settings, Fingerprint } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { startRegistration } from '@simplewebauthn/browser';
+import { motion } from 'motion/react';
 
 interface Props {
   isOpen: boolean;
@@ -16,6 +18,7 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isRegisteringWebAuthn, setIsRegisteringWebAuthn] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -33,6 +36,34 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleRegisterWebAuthn = async () => {
+    setIsRegisteringWebAuthn(true);
+    try {
+      const resp = await fetch('/api/auth/webauthn/generate-registration-options', { method: 'POST' });
+      if (!resp.ok) throw new Error('Fehler beim Generieren der Optionen');
+      const options = await resp.json();
+
+      const attResp = await startRegistration(options);
+
+      const verificationResp = await fetch('/api/auth/webauthn/verify-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(attResp),
+      });
+
+      if (!verificationResp.ok) throw new Error('Fehler bei der Verifizierung');
+      toast.success('Biometrische Anmeldung erfolgreich eingerichtet!');
+    } catch (e: any) {
+      if (e.name === 'NotAllowedError') {
+        toast.error('Registrierung abgebrochen');
+      } else {
+        toast.error(e.message || 'Fehler bei der Einrichtung');
+      }
+    } finally {
+      setIsRegisteringWebAuthn(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,78 +111,101 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-2xl">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="bg-[#111] border border-white/10 rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 relative overflow-y-auto max-h-[90vh]"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
         <button 
           onClick={onClose} 
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
         
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-            <Settings className="w-5 h-5 text-gray-900" />
+        <div className="flex items-center gap-4 mb-8 relative z-10">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center shrink-0">
+            <Settings className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900">Einstellungen</h2>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Einstellungen</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Benutzername</label>
+            <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Benutzername</label>
             <input 
               required 
               type="text" 
               value={username} 
               onChange={e => setUsername(e.target.value)} 
-              className="w-full border border-gray-300 rounded-md p-3 sm:p-2 focus:ring-gray-900 focus:border-gray-900" 
+              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all" 
             />
           </div>
 
-          <div className="pt-4 border-t border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Passwort ändern (optional)</h3>
+          <div className="pt-6 border-t border-white/10">
+            <h3 className="text-sm font-bold text-white mb-4">Biometrische Anmeldung</h3>
+            <p className="text-xs text-white/50 mb-4 leading-relaxed">
+              Richte Passkeys ein, um dich in Zukunft sicher und schnell mit deinem Fingerabdruck, Face ID oder Windows Hello anzumelden.
+            </p>
+            <button
+              type="button"
+              onClick={handleRegisterWebAuthn}
+              disabled={isRegisteringWebAuthn}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 font-bold transition-colors disabled:opacity-50"
+            >
+              <Fingerprint className="w-5 h-5" />
+              {isRegisteringWebAuthn ? 'Wird eingerichtet...' : 'Fingerabdruck / Face ID hinzufügen'}
+            </button>
+          </div>
+
+          <div className="pt-6 border-t border-white/10">
+            <h3 className="text-sm font-bold text-white mb-4">Passwort ändern (optional)</h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Aktuelles Passwort</label>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Aktuelles Passwort</label>
                 <div className="relative">
                   <input 
                     type={showCurrent ? "text" : "password"} 
                     value={currentPassword} 
                     onChange={e => setCurrentPassword(e.target.value)} 
-                    className="w-full border border-gray-300 rounded-md p-3 sm:p-2 pr-10 focus:ring-gray-900 focus:border-gray-900" 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all" 
                   />
-                  <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors">
                     {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Neues Passwort</label>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Neues Passwort</label>
                 <div className="relative">
                   <input 
                     type={showNew ? "text" : "password"} 
                     value={newPassword} 
                     onChange={e => setNewPassword(e.target.value)} 
-                    className="w-full border border-gray-300 rounded-md p-3 sm:p-2 pr-10 focus:ring-gray-900 focus:border-gray-900" 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all" 
                   />
-                  <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors">
                     {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Neues Passwort bestätigen</label>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Neues Passwort bestätigen</label>
                 <div className="relative">
                   <input 
                     type={showConfirm ? "text" : "password"} 
                     value={confirmPassword} 
                     onChange={e => setConfirmPassword(e.target.value)} 
-                    className="w-full border border-gray-300 rounded-md p-3 sm:p-2 pr-10 focus:ring-gray-900 focus:border-gray-900" 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all" 
                   />
-                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors">
                     {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
@@ -164,20 +218,20 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
               type="button" 
               onClick={onClose} 
               disabled={loading}
-              className="w-full sm:flex-1 px-4 py-3 sm:py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium disabled:opacity-50"
+              className="w-full sm:flex-1 px-4 py-3 border border-white/10 text-white rounded-xl hover:bg-white/5 font-bold transition-colors disabled:opacity-50"
             >
               Abbrechen
             </button>
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gray-900 text-white rounded-md hover:bg-black font-medium disabled:opacity-50 flex items-center justify-center"
+              className="w-full sm:flex-1 px-4 py-3 bg-white text-black rounded-xl hover:bg-gray-200 font-bold transition-colors disabled:opacity-50 flex items-center justify-center"
             >
               {loading ? 'Speichert...' : 'Speichern'}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

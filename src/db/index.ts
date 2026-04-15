@@ -67,6 +67,24 @@ db.exec(`
     is_read INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS webauthn_credentials (
+    id TEXT PRIMARY KEY,
+    user_type TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    public_key BLOB NOT NULL,
+    counter INTEGER NOT NULL,
+    transports TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS webauthn_challenges (
+    user_type TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    challenge TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_type, user_id)
+  );
 `);
 
 // Add meeting_point column if it doesn't exist (migration)
@@ -75,6 +93,15 @@ try {
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) {
     console.error('Error adding meeting_point column:', e);
+  }
+}
+
+// Add is_archived column if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE events ADD COLUMN is_archived INTEGER DEFAULT 0');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) {
+    console.error('Error adding is_archived column:', e);
   }
 }
 

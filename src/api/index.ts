@@ -5,6 +5,7 @@ import { db } from '../db/index.ts';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { webauthnRouter } from './webauthn.ts';
 
 export const apiRouter = Router();
 
@@ -128,6 +129,7 @@ authRouter.post('/logout', (req, res) => {
 authRouter.get('/check', requireAuth, (req: any, res) => {
   res.json({ user: req.admin });
 });
+authRouter.use('/webauthn', webauthnRouter);
 apiRouter.use('/auth', authRouter);
 
 // --- ADMIN ROUTES ---
@@ -136,7 +138,16 @@ adminRouter.use(requireAuth);
 
 // Events
 adminRouter.get('/events', (req, res) => {
-  const events = db.prepare('SELECT * FROM events ORDER BY date DESC').all();
+  const events = db.prepare(`
+    SELECT 
+      e.*,
+      COUNT(i.id) as total_invites,
+      SUM(CASE WHEN i.status = 'yes' THEN 1 ELSE 0 END) as yes_count
+    FROM events e
+    LEFT JOIN invitees i ON e.id = i.event_id
+    GROUP BY e.id
+    ORDER BY e.date ASC
+  `).all();
   res.json(events);
 });
 adminRouter.post('/events', (req, res) => {
@@ -179,24 +190,32 @@ adminRouter.get('/events/:id/invites', (req, res) => {
   `).all(req.params.id);
   res.json(invites);
 });
+
+adminRouter.put('/events/:id/archive', (req, res) => {
+  db.prepare('UPDATE events SET is_archived = ? WHERE id = ?').run(req.body.is_archived ? 1 : 0, req.params.id);
+  res.json({ success: true });
+});
+
 adminRouter.post('/events/:id/invites', (req, res) => {
   try {
     const { person_id } = inviteSchema.parse(req.body);
-    const person = db.prepare('SELECT name FROM persons WHERE id = ?').get(person_id) as any;
+    const person = db.prepare('SELECT name, password_hash FROM persons WHERE id = ?').get(person_id) as any;
     if (!person) return res.status(404).json({ error: 'Person not found' });
 
     const token = crypto.randomBytes(16).toString('hex');
     const stmt = db.prepare('INSERT INTO invitees (event_id, person_id, name_snapshot, token) VALUES (?, ?, ?, ?)');
     const info = stmt.run(req.params.id, person_id, person.name, token);
 
-    // Create notification for person
-    const event = db.prepare('SELECT title FROM events WHERE id = ?').get(req.params.id) as any;
-    db.prepare(`
-      INSERT INTO notifications (user_type, user_id, title, message, link)
-      VALUES ('person', ?, ?, ?, ?)
-    `).run(person_id, 'Neue Einladung', `Du wurdest zu "${event.title}" eingeladen.`, `/invite/${token}`);
+    // Create notification for person ONLY if they have a profile
+    if (person.password_hash) {
+      const event = db.prepare('SELECT title FROM events WHERE id = ?').get(req.params.id) as any;
+      db.prepare(`
+        INSERT INTO notifications (user_type, user_id, title, message, link)
+        VALUES ('person', ?, ?, ?, ?)
+      `).run(person_id, 'Neue Einladung', `Du wurdest zu "${event.title}" eingeladen.`, `/invite/${token}`);
+    }
 
-    res.json({ id: info.lastInsertRowid, token });
+    res.json({ id: info.lastInsertRowid, token, has_profile: !!person.password_hash });
   } catch (e: any) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return res.status(400).json({ error: 'Person ist bereits eingeladen' });
@@ -215,6 +234,7 @@ adminRouter.post('/events/:id/invites/bulk', (req, res) => {
       VALUES ('person', ?, ?, ?, ?)
     `);
     let addedCount = 0;
+    const noProfileNames: string[] = [];
 
     const event = db.prepare('SELECT title FROM events WHERE id = ?').get(eventId) as any;
 
@@ -222,20 +242,51 @@ adminRouter.post('/events/:id/invites/bulk', (req, res) => {
       for (const person_id of person_ids) {
         const existing = db.prepare('SELECT 1 FROM invitees WHERE event_id = ? AND person_id = ?').get(eventId, person_id);
         if (!existing) {
-          const person = db.prepare('SELECT name FROM persons WHERE id = ?').get(person_id) as any;
+          const person = db.prepare('SELECT name, password_hash FROM persons WHERE id = ?').get(person_id) as any;
           if (person) {
             const token = crypto.randomBytes(16).toString('hex');
             insert.run(eventId, person_id, person.name, token);
-            insertNotif.run(person_id, 'Neue Einladung', `Du wurdest zu "${event.title}" eingeladen.`, `/invite/${token}`);
+            if (person.password_hash) {
+              insertNotif.run(person_id, 'Neue Einladung', `Du wurdest zu "${event.title}" eingeladen.`, `/invite/${token}`);
+            } else {
+              noProfileNames.push(person.name);
+            }
             addedCount++;
           }
         }
       }
     })();
 
-    res.json({ success: true, count: addedCount });
+    res.json({ success: true, count: addedCount, no_profile_names: noProfileNames });
   } catch (e: any) {
     res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
+  }
+});
+
+adminRouter.post('/events/:id/invites/:inviteId/resend', (req, res) => {
+  try {
+    const invitee = db.prepare(`
+      SELECT i.*, e.title, p.password_hash
+      FROM invitees i 
+      JOIN events e ON i.event_id = e.id 
+      JOIN persons p ON i.person_id = p.id
+      WHERE i.id = ? AND i.event_id = ?
+    `).get(req.params.inviteId, req.params.id) as any;
+
+    if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
+
+    if (!invitee.password_hash) {
+      return res.status(400).json({ error: 'Person hat noch kein Profil. Bitte Link kopieren und persönlich senden.' });
+    }
+
+    db.prepare(`
+      INSERT INTO notifications (user_type, user_id, title, message, link)
+      VALUES ('person', ?, ?, ?, ?)
+    `).run(invitee.person_id, 'Erinnerung: Einladung', `Du bist noch zu "${invitee.title}" eingeladen.`, `/invite/${invitee.token}`);
+
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: 'Fehler beim erneuten Senden' });
   }
 });
 
@@ -289,18 +340,30 @@ adminRouter.get('/stats', (req, res) => {
       SUM(CASE WHEN i.status = 'yes' THEN 1 ELSE 0 END) as yes_count,
       SUM(CASE WHEN i.status = 'no' THEN 1 ELSE 0 END) as no_count,
       SUM(CASE WHEN i.status = 'maybe' THEN 1 ELSE 0 END) as maybe_count,
-      SUM(CASE WHEN i.status IS NULL THEN 1 ELSE 0 END) as pending_count
+      SUM(CASE WHEN i.status IS NULL OR i.status = 'pending' THEN 1 ELSE 0 END) as pending_count
     FROM events e
     LEFT JOIN invitees i ON e.id = i.event_id
     GROUP BY e.id
     ORDER BY e.date DESC
-  `).all();
+  `).all() as any[];
+
+  const eventBreakdown = eventStats.map(e => ({
+    ...e,
+    yes_pct: e.total_invites > 0 ? (e.yes_count / e.total_invites) * 100 : 0,
+    no_pct: e.total_invites > 0 ? (e.no_count / e.total_invites) * 100 : 0,
+    maybe_pct: e.total_invites > 0 ? (e.maybe_count / e.total_invites) * 100 : 0,
+    pending_pct: e.total_invites > 0 ? (e.pending_count / e.total_invites) * 100 : 0
+  }));
+
+  const archivedEvents = db.prepare('SELECT COUNT(*) as count FROM events WHERE is_archived = 1').get() as any;
 
   res.json({
     events: totalEvents.count,
+    archived_events: archivedEvents.count,
+    archived_pct: totalEvents.count > 0 ? (archivedEvents.count / totalEvents.count) * 100 : 0,
     persons: totalPersons.count,
     invites: totalInvites.count,
-    eventBreakdown: eventStats
+    eventBreakdown
   });
 });
 

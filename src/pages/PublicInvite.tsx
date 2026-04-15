@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 
 export default function PublicInvite() {
@@ -89,146 +90,189 @@ export default function PublicInvite() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 text-center max-w-md w-full">
-          <XCircle className="w-12 h-12 text-gray-900 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Link ungültig</h1>
-          <p className="text-gray-500">{error}</p>
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#111] p-8 rounded-[2rem] shadow-2xl border border-white/10 text-center max-w-md w-full">
+          <div className="w-20 h-20 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-500/30">
+            <XCircle className="w-10 h-10 text-red-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">Link ungültig</h1>
+          <p className="text-white/50 font-medium">{error}</p>
+        </motion.div>
       </div>
     );
   }
 
-  if (!data) return <div className="min-h-screen flex items-center justify-center">Lade...</div>;
+  if (!data) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Lade...</div>;
 
-  const { event, invitee } = data;
-  const isDeadlinePassed = event.response_deadline && new Date() > new Date(event.response_deadline);
+  const { aktion, invitee } = data;
+  const isDeadlinePassed = aktion.response_deadline && new Date() > new Date(aktion.response_deadline);
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center max-w-md w-full animate-in fade-in zoom-in duration-300">
-          <CheckCircle className="w-16 h-16 text-gray-900 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Vielen Dank, {invitee.name_snapshot || invitee.name}!</h1>
-          <p className="text-gray-600 mb-6">Deine Antwort wurde erfolgreich gespeichert.</p>
-          <div className="bg-gray-50 p-4 rounded-lg text-left text-sm text-gray-600">
-            <p className="font-medium text-gray-900 mb-1">Deine aktuelle Antwort:</p>
-            <p>
-              {status === 'yes' && '✅ Ich bin dabei'}
-              {status === 'no' && '❌ Ich kann leider nicht'}
-              {status === 'maybe' && '❓ Ich weiß es noch nicht'}
-            </p>
-            {guestsCount > 0 && <p className="mt-1">👥 + {guestsCount} Begleitperson(en)</p>}
-          </div>
-          
-          <div className="flex flex-col gap-3 mt-8">
-            <Link 
-              to="/dashboard"
-              className="bg-gray-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-black transition-colors flex items-center justify-center gap-2"
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 30 }} 
+          animate={{ opacity: 1, scale: 1, y: 0 }} 
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-[#111] p-10 rounded-[2.5rem] shadow-2xl border border-white/10 text-center max-w-md w-full relative overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent pointer-events-none" />
+          <div className="relative z-10">
+            <motion.div 
+              initial={{ scale: 0, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 15, delay: 0.2 }}
+              className="w-24 h-24 bg-green-500/20 rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-green-500/30 shadow-2xl"
             >
-              Zum Dashboard <ArrowRight className="w-4 h-4" />
-            </Link>
-            <button 
-              onClick={() => setSuccess(false)}
-              className="text-gray-500 hover:text-gray-900 text-sm font-medium"
-            >
-              Antwort noch einmal ändern
-            </button>
+              <CheckCircle className="w-12 h-12 text-green-400" />
+            </motion.div>
+            <h1 className="text-3xl font-bold text-white mb-3 tracking-tight">Vielen Dank, {invitee.name_snapshot || invitee.name}!</h1>
+            <p className="text-white/60 mb-8 font-medium">Deine Antwort wurde erfolgreich gespeichert.</p>
+            
+            <div className="bg-white/5 p-6 rounded-2xl text-left text-sm text-white/70 border border-white/10 mb-8">
+              <p className="font-bold text-white mb-2 uppercase tracking-widest text-xs">Deine aktuelle Antwort:</p>
+              <p className="font-medium text-lg">
+                {status === 'yes' && <span className="text-green-400">✅ Ich bin dabei</span>}
+                {status === 'no' && <span className="text-red-400">❌ Ich kann leider nicht</span>}
+                {status === 'maybe' && <span className="text-amber-400">❓ Ich weiß es noch nicht</span>}
+              </p>
+              {guestsCount > 0 && <p className="mt-2 text-white/50 font-bold">👥 + {guestsCount} Begleitperson(en)</p>}
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              <Link 
+                to="/dashboard"
+                className="bg-white text-black font-bold py-4 px-6 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+              >
+                Zum Dashboard <ArrowRight className="w-5 h-5" />
+              </Link>
+              <button 
+                onClick={() => setSuccess(false)}
+                className="text-white/40 hover:text-white text-sm font-bold transition-colors"
+              >
+                Antwort noch einmal ändern
+              </button>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6">
-      <div className="max-w-xl mx-auto">
-        {/* Header / Event Info */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-          <div className="bg-gray-900 p-6 text-white text-center">
-            <h1 className="text-2xl font-bold mb-2">{event.title}</h1>
-            <p className="text-gray-300">Hallo {invitee.name_snapshot || invitee.name}, du bist eingeladen!</p>
+    <div className="min-h-screen bg-black py-12 px-4 sm:px-6">
+      <div className="max-w-xl mx-auto space-y-8">
+        {/* Header / Aktion Info */}
+        <motion.div 
+          initial={{ opacity: 0, y: 30, scale: 0.98 }} 
+          animate={{ opacity: 1, y: 0, scale: 1 }} 
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-[#111] rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden relative"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+          <div className="bg-white/5 p-8 text-center border-b border-white/10 relative z-10">
+            <h1 className="text-3xl font-bold mb-3 text-white tracking-tight">{aktion.title}</h1>
+            <p className="text-white/60 font-medium text-lg">Hallo {invitee.name_snapshot || invitee.name}, du bist eingeladen!</p>
           </div>
           
-          <div className="p-6 space-y-4">
-            <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+          <div className="p-8 space-y-6 relative z-10">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 border border-white/10">
+                <Calendar className="w-6 h-6 text-white/80" />
+              </div>
               <div>
-                <div className="font-medium text-gray-900">Wann?</div>
-                <div className="text-gray-600">{format(parseISO(event.date), 'EEEE, dd. MMMM yyyy', { locale: de })}</div>
-                <div className="text-gray-600">{format(parseISO(event.date), 'HH:mm', { locale: de })} Uhr</div>
+                <div className="font-bold text-white text-lg">Wann?</div>
+                <div className="text-white/60 font-medium">{format(parseISO(aktion.date), 'EEEE, dd. MMMM yyyy', { locale: de })}</div>
+                <div className="text-white/60 font-medium">{format(parseISO(aktion.date), 'HH:mm', { locale: de })} Uhr</div>
               </div>
             </div>
             
-            <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 border border-white/10">
+                <MapPin className="w-6 h-6 text-white/80" />
+              </div>
               <div>
-                <div className="font-medium text-gray-900">Wo?</div>
-                <div className="text-gray-600">{event.location}</div>
-                {event.meeting_point && (
-                  <div className="text-sm text-gray-500 mt-1">Treffpunkt: {event.meeting_point}</div>
+                <div className="font-bold text-white text-lg">Wo?</div>
+                <div className="text-white/60 font-medium">{aktion.location}</div>
+                {aktion.meeting_point && (
+                  <div className="text-sm text-white/40 mt-1 font-medium">Treffpunkt: {aktion.meeting_point}</div>
                 )}
               </div>
             </div>
 
-            {event.description && (
-              <div className="pt-4 border-t border-gray-100 mt-4">
-                <div className="font-medium text-gray-900 mb-1">Details</div>
-                <p className="text-gray-600 text-sm whitespace-pre-wrap">{event.description}</p>
+            {aktion.description && (
+              <div className="pt-6 border-t border-white/10 mt-6">
+                <div className="font-bold text-white mb-2 text-lg">Details</div>
+                <p className="text-white/60 text-sm whitespace-pre-wrap leading-relaxed font-medium">{aktion.description}</p>
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Response Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Deine Antwort</h2>
+        <motion.form 
+          initial={{ opacity: 0, y: 30, scale: 0.98 }} 
+          animate={{ opacity: 1, y: 0, scale: 1 }} 
+          transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} 
+          onSubmit={handleSubmit} 
+          className="bg-[#111] rounded-[2.5rem] shadow-2xl border border-white/10 p-8"
+        >
+          <h2 className="text-2xl font-bold text-white mb-6 tracking-tight">Deine Antwort</h2>
           
           {isDeadlinePassed && (
-            <div className="bg-gray-100 text-gray-900 border border-gray-300 p-4 rounded-xl mb-6 text-sm font-medium">
-              Die Antwortfrist für dieses Event ist leider abgelaufen.
+            <div className="bg-red-500/10 text-red-400 border border-red-500/20 p-4 rounded-xl mb-8 text-sm font-bold text-center">
+              Die Antwortfrist für diese Aktion ist leider abgelaufen.
             </div>
           )}
 
-          <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 ${isDeadlinePassed ? 'opacity-50 pointer-events-none' : ''}`}>
-            <label className={`
-              cursor-pointer border-2 rounded-xl p-4 text-center transition-all
-              ${status === 'yes' ? 'border-gray-900 bg-gray-50 text-gray-900' : 'border-gray-200 hover:border-gray-300 text-gray-600'}
+          <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 ${isDeadlinePassed ? 'opacity-50 pointer-events-none' : ''}`}>
+            <motion.label 
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className={`
+              cursor-pointer border-2 rounded-2xl p-5 text-center transition-all relative overflow-hidden
+              ${status === 'yes' ? 'border-green-500 bg-green-500/10 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.2)]' : 'border-white/10 hover:border-white/30 bg-white/5 text-white/60'}
             `}>
               <input type="radio" name="status" value="yes" className="sr-only" checked={status === 'yes'} onChange={() => setStatus('yes')} disabled={isDeadlinePassed} />
-              <CheckCircle className={`w-6 h-6 mx-auto mb-2 ${status === 'yes' ? 'text-gray-900' : 'text-gray-400'}`} />
-              <span className="font-medium block">Bin dabei</span>
-            </label>
+              <CheckCircle className={`w-8 h-8 mx-auto mb-3 ${status === 'yes' ? 'text-green-400' : 'text-white/40'}`} />
+              <span className="font-bold block">Bin dabei</span>
+            </motion.label>
             
-            <label className={`
-              cursor-pointer border-2 rounded-xl p-4 text-center transition-all
-              ${status === 'no' ? 'border-gray-400 bg-gray-100 text-gray-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'}
+            <motion.label 
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className={`
+              cursor-pointer border-2 rounded-2xl p-5 text-center transition-all relative overflow-hidden
+              ${status === 'no' ? 'border-red-500 bg-red-500/10 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-white/10 hover:border-white/30 bg-white/5 text-white/60'}
             `}>
               <input type="radio" name="status" value="no" className="sr-only" checked={status === 'no'} onChange={() => setStatus('no')} disabled={isDeadlinePassed} />
-              <XCircle className={`w-6 h-6 mx-auto mb-2 ${status === 'no' ? 'text-gray-700' : 'text-gray-400'}`} />
-              <span className="font-medium block">Kann nicht</span>
-            </label>
+              <XCircle className={`w-8 h-8 mx-auto mb-3 ${status === 'no' ? 'text-red-400' : 'text-white/40'}`} />
+              <span className="font-bold block">Kann nicht</span>
+            </motion.label>
 
-            <label className={`
-              cursor-pointer border-2 rounded-xl p-4 text-center transition-all
-              ${status === 'maybe' ? 'border-gray-300 bg-white text-gray-600' : 'border-gray-200 hover:border-gray-300 text-gray-600'}
+            <motion.label 
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className={`
+              cursor-pointer border-2 rounded-2xl p-5 text-center transition-all relative overflow-hidden
+              ${status === 'maybe' ? 'border-amber-500 bg-amber-500/10 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'border-white/10 hover:border-white/30 bg-white/5 text-white/60'}
             `}>
               <input type="radio" name="status" value="maybe" className="sr-only" checked={status === 'maybe'} onChange={() => setStatus('maybe')} disabled={isDeadlinePassed} />
-              <HelpCircle className={`w-6 h-6 mx-auto mb-2 ${status === 'maybe' ? 'text-gray-600' : 'text-gray-400'}`} />
-              <span className="font-medium block">Vielleicht</span>
-            </label>
+              <HelpCircle className={`w-8 h-8 mx-auto mb-3 ${status === 'maybe' ? 'text-amber-400' : 'text-white/40'}`} />
+              <span className="font-bold block">Vielleicht</span>
+            </motion.label>
           </div>
 
           {status === 'yes' && (
-            <div className={`mb-6 ${isDeadlinePassed ? 'opacity-50 pointer-events-none' : ''}`}>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`mb-8 ${isDeadlinePassed ? 'opacity-50 pointer-events-none' : ''}`}>
+              <label className="flex items-center gap-2 text-xs font-bold text-white/50 uppercase tracking-widest mb-3">
                 <Users className="w-4 h-4" />
                 Bringe ich Begleitpersonen mit?
               </label>
               <select 
                 value={guestsCount} 
                 onChange={e => setGuestsCount(Number(e.target.value))}
-                className="w-full border border-gray-300 rounded-md p-2.5 bg-white"
+                className="w-full bg-black border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all font-medium appearance-none"
                 disabled={isDeadlinePassed}
               >
                 <option value={0}>Nein, ich komme alleine</option>
@@ -237,63 +281,73 @@ export default function PublicInvite() {
                 <option value={3}>+ 3 Personen</option>
                 <option value={4}>+ 4 Personen</option>
               </select>
-            </div>
+            </motion.div>
           )}
 
-          <div className={`mb-6 ${isDeadlinePassed ? 'opacity-50 pointer-events-none' : ''}`}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className={`mb-8 ${isDeadlinePassed ? 'opacity-50 pointer-events-none' : ''}`}>
+            <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-3">
               Kommentar (optional)
             </label>
             <textarea 
               value={comment}
               onChange={e => setComment(e.target.value)}
               placeholder="z.B. Komme etwas später..."
-              className="w-full border border-gray-300 rounded-md p-3 text-sm"
+              className="w-full bg-black border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all font-medium"
               rows={3}
               disabled={isDeadlinePassed}
             />
           </div>
 
           {!isDeadlinePassed && (
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
-              className="w-full bg-gray-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-black transition-colors"
+              className="w-full bg-white text-black font-bold py-4 px-6 rounded-xl hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] text-lg"
             >
               Antwort speichern
-            </button>
+            </motion.button>
           )}
-        </form>
+        </motion.form>
 
         {/* Profile Setup / Dashboard Link */}
         {!invitee.has_profile ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 animate-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <User className="w-5 h-5" />
+          <motion.div 
+            initial={{ opacity: 0, y: 30, scale: 0.98 }} 
+            animate={{ opacity: 1, y: 0, scale: 1 }} 
+            transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }} 
+            className="bg-[#111] rounded-[2.5rem] shadow-2xl border border-white/10 p-8 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 pointer-events-none" />
+            <h2 className="text-2xl font-bold text-white mb-3 flex items-center gap-3 tracking-tight relative z-10">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
               Profil erstellen
             </h2>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-white/60 mb-8 font-medium leading-relaxed">
               Erstelle ein Profil, um alle deine Einladungen an einem Ort zu sehen und deine Antworten jederzeit zu ändern.
             </p>
             
-            <form onSubmit={handleSetupProfile} className="space-y-4">
+            <form onSubmit={handleSetupProfile} className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">E-Mail Adresse</label>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">E-Mail Adresse</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                   <input 
                     type="email" 
                     required 
                     value={setupEmail}
                     onChange={e => setSetupEmail(e.target.value)}
                     placeholder="deine@email.de"
-                    className="w-full border border-gray-300 rounded-xl p-3 pl-10 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                    className="w-full bg-black border border-white/10 rounded-xl p-4 pl-12 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all font-medium"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Passwort wählen</label>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Passwort wählen</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                   <input 
                     type="password" 
                     required 
@@ -301,37 +355,37 @@ export default function PublicInvite() {
                     value={setupPassword}
                     onChange={e => setSetupPassword(e.target.value)}
                     placeholder="Mind. 8 Zeichen"
-                    className="w-full border border-gray-300 rounded-xl p-3 pl-10 text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none transition-all"
+                    className="w-full bg-black border border-white/10 rounded-xl p-4 pl-12 text-white focus:ring-2 focus:ring-white/30 outline-none transition-all font-medium"
                   />
                 </div>
               </div>
               <button 
                 type="submit"
                 disabled={isSettingUp}
-                className="w-full bg-gray-100 text-gray-900 font-bold py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+                className="w-full bg-white/10 text-white font-bold py-4 px-6 rounded-xl hover:bg-white/20 transition-all disabled:opacity-50 border border-white/10 mt-2"
               >
                 {isSettingUp ? 'Wird erstellt...' : 'Profil jetzt erstellen'}
               </button>
             </form>
-          </div>
+          </motion.div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-green-600" />
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#111] rounded-[2rem] shadow-2xl border border-white/10 p-8 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center border border-green-500/30">
+                <CheckCircle className="w-6 h-6 text-green-400" />
               </div>
               <div>
-                <div className="font-bold text-gray-900">Profil aktiv</div>
-                <div className="text-sm text-gray-500">Du kannst dich jederzeit einloggen.</div>
+                <div className="font-bold text-white text-lg">Profil aktiv</div>
+                <div className="text-white/50 font-medium">Du kannst dich jederzeit einloggen.</div>
               </div>
             </div>
             <Link 
               to="/dashboard"
-              className="text-gray-900 font-bold text-sm hover:underline flex items-center gap-1"
+              className="text-white font-bold text-sm hover:bg-white/10 px-4 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/10"
             >
               Dashboard <ArrowRight className="w-4 h-4" />
             </Link>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

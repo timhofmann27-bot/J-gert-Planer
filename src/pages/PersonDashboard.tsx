@@ -4,6 +4,7 @@ import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import { motion } from 'motion/react';
 import NotificationsMenu from '../components/NotificationsMenu';
 
 export default function PersonDashboard() {
@@ -44,7 +45,7 @@ export default function PersonDashboard() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Lade...</div>;
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Lade...</div>;
 
   const upcoming = invitations.filter(i => new Date(i.date) >= new Date());
   const past = invitations.filter(i => new Date(i.date) < new Date());
@@ -52,20 +53,20 @@ export default function PersonDashboard() {
   const responded = upcoming.filter(i => i.status !== 'pending');
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+    <div className="min-h-screen bg-black pb-12">
+      <header className="bg-black/50 border-b border-white/10 sticky top-0 z-10 backdrop-blur-xl">
+        <div className="max-w-4xl mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10">
               <User className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-gray-900 hidden sm:inline">Hallo, {user?.name}</span>
+            <span className="font-bold text-white text-lg hidden sm:inline">Hallo, {user?.name}</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             <NotificationsMenu apiPrefix="/api/public" />
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium"
+              className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors font-bold bg-white/5 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/10"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Abmelden</span>
@@ -74,100 +75,161 @@ export default function PersonDashboard() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-10">
+      <main className="max-w-4xl mx-auto px-4 py-10 space-y-12">
         {/* Offene Einladungen */}
         {pending.length > 0 && (
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-5 h-5 text-amber-500" />
-              <h2 className="text-xl font-bold text-gray-900">Offene Einladungen</h2>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center border border-amber-500/30">
+                <Clock className="w-4 h-4 text-amber-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white tracking-tight">Offene Einladungen</h2>
             </div>
             <div className="grid gap-4">
-              {pending.map(inv => (
-                <Link 
-                  key={inv.id} 
-                  to={`/invite/${inv.token}`}
-                  className="bg-white p-5 rounded-2xl shadow-sm border border-amber-200 hover:border-amber-400 transition-all flex items-center justify-between group"
+              {pending.map((inv, i) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 30, scale: 0.95 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }} 
+                  transition={{ duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }} 
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  whileTap={{ scale: 0.98 }}
+                  key={inv.id}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-amber-50 rounded-xl flex flex-col items-center justify-center text-amber-700 shrink-0">
-                      <span className="text-xs font-bold uppercase">{format(parseISO(inv.date), 'MMM', { locale: de })}</span>
-                      <span className="text-lg font-bold leading-none">{format(parseISO(inv.date), 'dd')}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 group-hover:text-amber-700 transition-colors">{inv.title}</h3>
-                      <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
-                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {format(parseISO(inv.date), 'HH:mm')} Uhr</span>
-                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {inv.location}</span>
+                  <Link 
+                    to={`/invite/${inv.token}`}
+                    className="bg-[#111] p-6 rounded-[2rem] shadow-xl border border-amber-500/30 hover:border-amber-400 transition-all flex items-center justify-between group relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent pointer-events-none" />
+                    <div className="flex items-start gap-5 relative z-10">
+                      <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex flex-col items-center justify-center text-amber-400 shrink-0 border border-amber-500/20">
+                        <span className="text-[10px] font-black uppercase tracking-widest">{format(parseISO(inv.date), 'MMM', { locale: de })}</span>
+                        <span className="text-xl font-black leading-none">{format(parseISO(inv.date), 'dd')}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-white group-hover:text-amber-400 transition-colors">{inv.title}</h3>
+                        <div className="flex items-center gap-4 text-sm text-white/50 mt-2 font-medium">
+                          <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {format(parseISO(inv.date), 'HH:mm')} Uhr</span>
+                          <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {inv.location}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-amber-500 transition-colors" />
-                </Link>
+                    <div className="flex items-center gap-3 relative z-10">
+                      <span className="text-sm font-bold text-white/40 group-hover:text-amber-400 transition-colors hidden sm:block">Antworten</span>
+                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                        <ChevronRight className="w-5 h-5 text-white/30 group-hover:text-amber-400 transition-colors" />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Meine Events */}
+        {/* Meine Aktionen */}
         <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-gray-900" />
-            <h2 className="text-xl font-bold text-gray-900">Kommende Events</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/10">
+              <Calendar className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-white tracking-tight">Kommende Aktionen</h2>
           </div>
           {responded.length > 0 ? (
             <div className="grid gap-4">
-              {responded.map(inv => (
-                <Link 
-                  key={inv.id} 
-                  to={`/invite/${inv.token}`}
-                  className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 hover:border-gray-900 transition-all flex items-center justify-between group"
+              {responded.map((inv, i) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 30, scale: 0.95 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }} 
+                  transition={{ duration: 0.5, delay: i * 0.08 + 0.1, ease: [0.22, 1, 0.36, 1] }} 
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  whileTap={{ scale: 0.98 }}
+                  key={inv.id}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-gray-50 rounded-xl flex flex-col items-center justify-center text-gray-500 shrink-0">
-                      <span className="text-xs font-bold uppercase">{format(parseISO(inv.date), 'MMM', { locale: de })}</span>
-                      <span className="text-lg font-bold leading-none">{format(parseISO(inv.date), 'dd')}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900">{inv.title}</h3>
-                      <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
-                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {inv.location}</span>
-                        <span className="flex items-center gap-1">
-                          {inv.status === 'yes' && <span className="text-green-600 flex items-center gap-1 font-medium"><CheckCircle className="w-3.5 h-3.5" /> Zugesagt</span>}
-                          {inv.status === 'no' && <span className="text-red-600 flex items-center gap-1 font-medium"><XCircle className="w-3.5 h-3.5" /> Abgesagt</span>}
-                          {inv.status === 'maybe' && <span className="text-amber-600 flex items-center gap-1 font-medium"><HelpCircle className="w-3.5 h-3.5" /> Vielleicht</span>}
-                        </span>
+                  <Link 
+                    to={`/invite/${inv.token}`}
+                    className="bg-[#111] p-6 rounded-[2rem] shadow-xl border border-white/10 hover:border-white/30 transition-all flex items-center justify-between group relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-start gap-5 relative z-10">
+                      <div className="w-14 h-14 bg-white/5 rounded-2xl flex flex-col items-center justify-center text-white/60 shrink-0 border border-white/10">
+                        <span className="text-[10px] font-black uppercase tracking-widest">{format(parseISO(inv.date), 'MMM', { locale: de })}</span>
+                        <span className="text-xl font-black leading-none">{format(parseISO(inv.date), 'dd')}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-white">{inv.title}</h3>
+                        <div className="flex items-center gap-4 text-sm text-white/50 mt-2 font-medium">
+                          <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {inv.location}</span>
+                          <span className="flex items-center gap-1.5">
+                            {inv.status === 'yes' && <span className="text-green-400 flex items-center gap-1 font-bold bg-green-500/10 px-2 py-0.5 rounded-md"><CheckCircle className="w-3.5 h-3.5" /> Zugesagt</span>}
+                            {inv.status === 'no' && <span className="text-red-400 flex items-center gap-1 font-bold bg-red-500/10 px-2 py-0.5 rounded-md"><XCircle className="w-3.5 h-3.5" /> Abgesagt</span>}
+                            {inv.status === 'maybe' && <span className="text-amber-400 flex items-center gap-1 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md"><HelpCircle className="w-3.5 h-3.5" /> Vielleicht</span>}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-900 transition-colors" />
-                </Link>
+                    <div className="flex items-center gap-3 relative z-10">
+                      <span className="text-sm font-bold text-white/40 group-hover:text-white transition-colors hidden sm:block">Bearbeiten</span>
+                      <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                        <ChevronRight className="w-5 h-5 text-white/30 group-hover:text-white transition-colors" />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
               ))}
             </div>
           ) : (
-            <div className="bg-white p-10 rounded-2xl border border-dashed border-gray-300 text-center">
-              <p className="text-gray-500">Du hast noch keine kommenden Events mit Antwort.</p>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-[#111] p-12 rounded-[2.5rem] border border-white/10 text-center flex flex-col items-center justify-center relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+              <motion.div 
+                initial={{ scale: 0, rotate: -10 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', damping: 15, delay: 0.2 }}
+                className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mb-6 border border-white/10 shadow-2xl relative z-10"
+              >
+                <Calendar className="w-10 h-10 text-white/30" />
+              </motion.div>
+              <p className="text-white/50 font-medium text-lg relative z-10">Du hast noch keine kommenden Aktionen mit Antwort.</p>
+            </motion.div>
           )}
         </section>
 
-        {/* Vergangene Events */}
+        {/* Vergangene Aktionen */}
         {past.length > 0 && (
-          <section className="opacity-60">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Vergangene Events</h2>
+          <section className="opacity-60 hover:opacity-100 transition-opacity">
+            <h2 className="text-xl font-bold text-white mb-6 tracking-tight">Vergangene Aktionen</h2>
             <div className="grid gap-3">
-              {past.map(inv => (
-                <div key={inv.id} className="bg-white p-4 rounded-xl border border-gray-200 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm font-bold text-gray-400 w-10 text-center">
-                      {format(parseISO(inv.date), 'dd.MM.')}
+              {past.map((inv, i) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }} 
+                  transition={{ duration: 0.4, delay: i * 0.05 + 0.2, ease: [0.22, 1, 0.36, 1] }} 
+                  whileHover={{ scale: 1.01, x: 5 }}
+                  whileTap={{ scale: 0.99 }}
+                  key={inv.id}
+                >
+                  <Link to={`/invite/${inv.token}`} className="bg-[#111] p-5 rounded-2xl border border-white/10 flex items-center justify-between hover:bg-white/5 transition-colors group">
+                    <div className="flex items-center gap-5">
+                      <div className="text-sm font-black text-white/40 w-12 text-center bg-white/5 py-1 rounded-lg">
+                        {format(parseISO(inv.date), 'dd.MM.')}
+                      </div>
+                      <div className="font-bold text-white/80 group-hover:text-white transition-colors">{inv.title}</div>
                     </div>
-                    <div className="font-medium text-gray-700">{inv.title}</div>
-                  </div>
-                  <div className="text-xs font-bold uppercase text-gray-400">
-                    {inv.status === 'yes' ? 'Teilgenommen' : 'Nicht dabei'}
-                  </div>
-                </div>
+                    <div className="flex items-center gap-4">
+                      <div className={`text-xs font-black uppercase px-3 py-1 rounded-lg ${inv.status === 'yes' ? 'bg-green-500/10 text-green-400' : 'bg-white/5 text-white/40'}`}>
+                        {inv.status === 'yes' ? 'Teilgenommen' : 'Nicht dabei'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white/40 group-hover:text-white transition-colors hidden sm:block">Details</span>
+                        <ChevronRight className="w-5 h-5 text-white/30 group-hover:text-white transition-colors" />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
               ))}
             </div>
           </section>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { LogOut, Calendar, Users, BarChart } from 'lucide-react';
+import { motion } from 'motion/react';
 import NotificationsMenu from './NotificationsMenu';
 
 export default function AdminLayout() {
@@ -15,32 +16,34 @@ export default function AdminLayout() {
         return res.json();
       })
       .then(() => setLoading(false))
-      .catch(() => navigate('/admin/login'));
+      .catch(() => navigate('/login'));
   }, [navigate]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    navigate('/admin/login');
+    navigate('/login');
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Lade...</div>;
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white/50">Lade...</div>;
 
   const navItems = [
-    { path: '/', label: 'Events', icon: Calendar },
+    { path: '/', label: 'Aktionen', icon: Calendar },
     { path: '/persons', label: 'Personen', icon: Users },
     { path: '/stats', label: 'Statistik', icon: BarChart },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-black text-white flex flex-col selection:bg-white/30">
+      <header className="sticky top-0 z-50 bg-black/50 backdrop-blur-2xl border-b border-white/10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
-              <Calendar className="w-5 h-5 text-gray-900" />
-              EventPlaner
+            <Link to="/" className="flex items-center gap-2 text-white font-bold text-lg tracking-tight">
+              <div className="w-8 h-8 bg-white text-black rounded-xl flex items-center justify-center">
+                <Calendar className="w-4 h-4" />
+              </div>
+              AktionsPlaner
             </Link>
-            <nav className="hidden sm:flex gap-6">
+            <nav className="hidden sm:flex gap-1">
               {navItems.map(item => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path || (item.path === '/' && location.pathname.startsWith('/events'));
@@ -48,7 +51,7 @@ export default function AdminLayout() {
                   <Link 
                     key={item.path} 
                     to={item.path}
-                    className={`flex items-center gap-2 text-sm font-medium transition-colors ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${isActive ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white hover:bg-white/5'}`}
                   >
                     <Icon className="w-4 h-4" />
                     {item.label}
@@ -61,7 +64,7 @@ export default function AdminLayout() {
             <NotificationsMenu apiPrefix="/api/admin" />
             <button 
               onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700 flex items-center gap-2 text-sm font-medium"
+              className="text-white/50 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors px-3 py-2 rounded-xl hover:bg-white/5"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Abmelden</span>
@@ -69,7 +72,7 @@ export default function AdminLayout() {
           </div>
         </div>
         {/* Mobile Nav */}
-        <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-2 flex justify-around">
+        <div className="sm:hidden border-t border-white/10 bg-black/50 backdrop-blur-2xl px-2 py-2 flex justify-around">
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path || (item.path === '/' && location.pathname.startsWith('/events'));
@@ -77,17 +80,24 @@ export default function AdminLayout() {
               <Link 
                 key={item.path} 
                 to={item.path}
-                className={`flex flex-col items-center gap-1 text-xs font-medium ${isActive ? 'text-gray-900' : 'text-gray-500'}`}
+                className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${isActive ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/80'}`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5 mb-0.5" />
                 {item.label}
               </Link>
             );
           })}
         </div>
       </header>
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        <Outlet />
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 relative">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Outlet />
+        </motion.div>
       </main>
     </div>
   );
