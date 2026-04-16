@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Users, CheckCircle, XCircle, HelpCircle, Clock, Copy, Trash2, Plus, MapPin, Calendar, MessageSquare, UserPlus, Send, Edit2, Hourglass } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, XCircle, HelpCircle, Clock, Copy, Trash2, Plus, MapPin, Calendar, MessageSquare, UserPlus, Send, Edit2, Hourglass, Train } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import MapComponent from '../components/MapComponent';
+import TransitPlanner from '../components/TransitPlanner';
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -15,6 +16,7 @@ export default function EventDetails() {
   const [invites, setInvites] = useState<any[]>([]);
   const [persons, setPersons] = useState<any[]>([]);
   const [invitationSteps, setInvitationSteps] = useState<any[]>([]);
+  const [showTransit, setShowTransit] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [filter, setFilter] = useState('all');
   
@@ -298,6 +300,15 @@ export default function EventDetails() {
               {aktion.description}
             </div>
           )}
+          
+          <div className="mt-8 flex justify-center sm:justify-start">
+            <button 
+              onClick={() => setShowTransit(true)}
+              className="bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 px-8 py-5 rounded-[1.8rem] flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] text-white transition-all active:scale-95 shadow-2xl"
+            >
+              <Train className="w-5 h-5" /> Route planen
+            </button>
+          </div>
         </div>
       </motion.div>
 
@@ -703,6 +714,13 @@ export default function EventDetails() {
           </motion.div>
         </div>
       )}
+
+      <TransitPlanner 
+        isOpen={showTransit}
+        onClose={() => setShowTransit(false)}
+        destination={aktion?.location}
+        destinationName={aktion?.location}
+      />
     </div>
   );
 }

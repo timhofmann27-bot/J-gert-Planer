@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User, AlertCircle, Train } from 'lucide-react';
 import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import MapComponent from '../components/MapComponent';
+import TransitPlanner from '../components/TransitPlanner';
 
 function Countdown({ deadline }: { deadline: string }) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -79,6 +80,8 @@ export default function PublicInvite() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [showTransit, setShowTransit] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const [status, setStatus] = useState('');
   const [comment, setComment] = useState('');
@@ -90,6 +93,13 @@ export default function PublicInvite() {
   const [isSettingUp, setIsSettingUp] = useState(false);
 
   useEffect(() => {
+    fetch('/api/public/check')
+      .then(res => res.json())
+      .then(user => {
+        setIsAdmin(user.isAdmin);
+      })
+      .catch(() => setIsAdmin(false));
+
     fetch(`/api/public/invite/${token}`)
       .then(res => {
         if (!res.ok) throw new Error('Ungültiger Link');
@@ -261,7 +271,18 @@ export default function PublicInvite() {
   }
 
   return (
-    <div className="min-h-screen bg-black py-16 sm:py-32 px-6">
+    <div className="min-h-screen bg-black py-16 sm:py-32 px-6 relative">
+      {isAdmin && (
+        <div className="fixed top-8 left-8 z-50">
+          <Link 
+            to="/"
+            className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:scale-110 active:scale-95 transition-all group"
+            title="Zurück zur Admin-Übersicht"
+          >
+            <Calendar className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+          </Link>
+        </div>
+      )}
       <div className="max-w-xl mx-auto space-y-20 pb-20">
         {/* Header / Aktion Info */}
         <motion.div 
@@ -316,14 +337,24 @@ export default function PublicInvite() {
               </div>
 
               {aktion?.location && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="rounded-[2.5rem] overflow-hidden border border-white/5 brightness-75 grayscale hover:grayscale-0 transition-all duration-700 h-64 shadow-2xl"
-                >
-                  <MapComponent location={aktion.location} />
-                </motion.div>
+                <div className="space-y-6">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="rounded-[2.5rem] overflow-hidden border border-white/5 brightness-75 grayscale hover:grayscale-0 transition-all duration-700 h-64 shadow-2xl relative group"
+                  >
+                    <MapComponent location={aktion.location} />
+                    <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/60 to-transparent flex justify-end">
+                      <button 
+                        onClick={() => setShowTransit(true)}
+                        className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all active:scale-95"
+                      >
+                        <Train className="w-4 h-4" /> Route planen
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
               )}
 
               {aktion?.description && (
@@ -576,6 +607,13 @@ export default function PublicInvite() {
           )}
         </div>
       </div>
+      {/* Bottom Sheet for Transit */}
+      <TransitPlanner 
+        isOpen={showTransit}
+        onClose={() => setShowTransit(false)}
+        destination={aktion?.location}
+        destinationName={aktion?.location}
+      />
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight, AlertCircle, Train } from 'lucide-react';
 import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import NotificationsMenu from '../components/NotificationsMenu';
+import TransitPlanner from '../components/TransitPlanner';
 
 function Countdown({ deadline }: { deadline: string }) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -65,6 +66,7 @@ export default function PersonDashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [invitations, setInvitations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [transitAktion, setTransitAktion] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -112,10 +114,20 @@ export default function PersonDashboard() {
       <header className="bg-black/60 sticky top-0 z-50 backdrop-blur-3xl border-b border-white/5">
         <div className="max-w-5xl mx-auto px-6 h-24 flex items-center justify-between">
           <div className="flex items-center gap-5">
-            <div className="w-12 h-12 bg-surface-elevated text-white rounded-[1.2rem] flex items-center justify-center border border-white/10 shadow-2xl relative overflow-hidden group">
-              <User className="w-6 h-6 relative z-10" />
-              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
-            </div>
+            {isAdmin ? (
+              <Link 
+                to="/" 
+                className="w-12 h-12 bg-white text-black rounded-[1.2rem] flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(255,255,255,0.1)] relative overflow-hidden group hover:scale-105 active:scale-95 transition-all"
+                title="Zurück zum Admin-Dashboard"
+              >
+                <Calendar className="w-6 h-6 relative z-10 group-hover:rotate-12 transition-transform" />
+              </Link>
+            ) : (
+              <div className="w-12 h-12 bg-surface-elevated text-white rounded-[1.2rem] flex items-center justify-center border border-white/10 shadow-2xl relative overflow-hidden group">
+                <User className="w-6 h-6 relative z-10" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
+              </div>
+            )}
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Willkommen</span>
               <span className="font-serif text-2xl font-bold text-white tracking-tighter leading-none mt-1">{user?.name}</span>
@@ -181,6 +193,16 @@ export default function PersonDashboard() {
                         <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-xs font-bold uppercase tracking-[0.2em] text-white/20">
                           <span className="flex items-center gap-3"><Clock className="w-4 h-4" /> {format(parseISO(inv.date), 'HH:mm')} Uhr</span>
                           <span className="flex items-center gap-3"><MapPin className="w-4 h-4" /> {inv.location}</span>
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setTransitAktion(inv);
+                            }}
+                            className="flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-white/40 hover:text-white transition-all active:scale-95"
+                          >
+                            <Train className="w-3.5 h-3.5" /> Route
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -245,6 +267,16 @@ export default function PersonDashboard() {
                           {inv.status === 'no' && 'Leider nicht dabei'}
                           {inv.status === 'maybe' && 'Vielleicht dabei'}
                         </div>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setTransitAktion(inv);
+                          }}
+                          className="mt-4 flex items-center justify-center gap-3 w-full py-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/30 hover:text-white transition-all active:scale-95"
+                        >
+                          <Train className="w-4 h-4" /> Route planen
+                        </button>
                       </div>
                     </div>
                     <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
@@ -300,6 +332,13 @@ export default function PersonDashboard() {
           </section>
         )}
       </main>
+      
+      <TransitPlanner 
+        isOpen={transitAktion !== null}
+        onClose={() => setTransitAktion(null)}
+        destination={transitAktion?.location}
+        destinationName={transitAktion?.location}
+      />
     </div>
   );
 }

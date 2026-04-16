@@ -1,0 +1,268 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Train, Bus, TramFront as Tram, Footprints as Walk, 
+  MapPin, Clock, ArrowRight, X, Loader2, Navigation,
+  ChevronRight, AlertCircle, Search, ExternalLink
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { format, parseISO } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { fetchTransitConnections, TransitConnection } from '../services/transitService';
+import toast from 'react-hot-toast';
+
+interface TransitPlannerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  destination: string;
+  destinationName: string;
+}
+
+export default function TransitPlanner({ isOpen, onClose, destination, destinationName }: TransitPlannerProps) {
+  const [startPoint, setStartPoint] = useState('');
+  const [useCurrentLocation, setUseCurrentLocation] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [connections, setConnections] = useState<TransitConnection[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const getIcon = (mode: string) => {
+    switch (mode) {
+      case 'train': return <Train className="w-4 h-4" />;
+      case 'bus': return <Bus className="w-4 h-4" />;
+      case 'walk': return <Walk className="w-4 h-4" />;
+      case 'tram': return <Tram className="w-4 h-4" />;
+      default: return <Bus className="w-4 h-4" />;
+    }
+  };
+
+  const findRoutes = async (start: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const routes = await fetchTransitConnections(start, destination);
+      if (routes.length === 0) {
+        setError('Keine Verbindung gefunden. Probiere es mit einem anderen Startpunkt.');
+      } else {
+        setConnections(routes);
+      }
+    } catch (err) {
+      setError('Fehler bei der Routenberechnung. Bitte später erneut versuchen.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGetCurrentLocation = () => {
+    setLoading(true);
+    if (!navigator.geolocation) {
+      toast.error('Geolocation wird von deinem Browser nicht unterstützt');
+      setUseCurrentLocation(false);
+      setLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const start = `${pos.coords.latitude},${pos.coords.longitude}`;
+        setStartPoint('Aktueller Standort');
+        findRoutes(start);
+      },
+      (err) => {
+        console.error(err);
+        toast.error('Standortzugriff verweigert');
+        setUseCurrentLocation(false);
+        setLoading(false);
+      }
+    );
+  };
+
+  useEffect(() => {
+    if (isOpen && useCurrentLocation && !startPoint) {
+      handleGetCurrentLocation();
+    }
+  }, [isOpen]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!startPoint) return;
+    findRoutes(startPoint);
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          {/* Backdrop */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+          />
+
+          {/* Sheet */}
+          <motion.div 
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="relative w-full max-w-2xl bg-[#0a0a0b] border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[80vh]"
+          >
+            {/* Header */}
+            <div className="p-8 sm:p-10 border-b border-white/5 bg-white/[0.02]">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
+                    <Train className="w-6 h-6 text-white/40" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-serif font-bold text-white tracking-tighter">Route planen</h2>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Öffentlicher Nahverkehr</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={onClose}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/5 text-white/20 hover:text-white transition-all active:scale-90"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Location Summary */}
+              <div className="flex items-center gap-4 p-4 bg-white/[0.03] rounded-2xl border border-white/5 mb-8">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                  <MapPin className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-[9px] font-black text-white/20 uppercase tracking-widest">Ziel</div>
+                  <div className="text-sm font-bold text-white truncate">{destinationName}</div>
+                </div>
+              </div>
+
+              {/* Start Input */}
+              <form onSubmit={handleSearch} className="relative">
+                <input 
+                  type="text"
+                  placeholder="Startort eingeben..."
+                  value={startPoint}
+                  onChange={(e) => {
+                    setStartPoint(e.target.value);
+                    setUseCurrentLocation(false);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-12 text-white placeholder:text-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all font-medium"
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                {!useCurrentLocation && (
+                  <button 
+                    type="button"
+                    onClick={handleGetCurrentLocation}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors"
+                    title="Aktuellen Standort nutzen"
+                  >
+                    <Navigation className="w-4 h-4" />
+                  </button>
+                )}
+              </form>
+            </div>
+
+            {/* Results */}
+            <div className="flex-1 overflow-y-auto p-8 sm:p-10 space-y-6">
+              {loading ? (
+                <div className="py-20 flex flex-col items-center gap-4">
+                  <Loader2 className="w-8 h-8 text-white/20 animate-spin" />
+                  <p className="text-white/20 font-black text-[10px] uppercase tracking-widest">Suche beste Verbindungen...</p>
+                </div>
+              ) : error ? (
+                <div className="py-20 text-center space-y-8">
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 bg-red-500/5 rounded-3xl flex items-center justify-center mx-auto border border-red-500/10">
+                      <AlertCircle className="w-8 h-8 text-red-500/40" />
+                    </div>
+                    <p className="text-white/40 font-serif text-lg px-10">{error}</p>
+                  </div>
+                  
+                  <div className="pt-8 border-t border-white/5 space-y-4">
+                    <p className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em]">Alternative verwenden</p>
+                    <div className="flex justify-center">
+                      <a 
+                        href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(startPoint === 'Aktueller Standort' ? 'current location' : startPoint)}&destination=${encodeURIComponent(destination)}&travelmode=transit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/5 px-8 py-4 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest transition-all"
+                      >
+                        In Google Maps öffnen <ExternalLink className="w-4 h-4 text-white/40" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ) : connections.length > 0 ? (
+                <>
+                  <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4">Empfohlene Wege</div>
+                  {connections.map((c, i) => (
+                    <motion.div 
+                      key={c.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6 hover:bg-white/[0.04] transition-all group"
+                    >
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="flex gap-2">
+                          {c.legs.map((leg, idx) => (
+                            <React.Fragment key={idx}>
+                              <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg border border-white/5 text-white/40 text-[9px] font-black uppercase tracking-tight">
+                                {getIcon(leg.mode)}
+                                {leg.line}
+                              </div>
+                              {idx < c.legs.length - 1 && (
+                                <ChevronRight className="w-3 h-3 text-white/10 self-center" />
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-serif font-bold text-white tracking-tighter">
+                            {format(parseISO(c.departure), 'HH:mm')} – {format(parseISO(c.arrival), 'HH:mm')}
+                          </div>
+                          <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest">
+                            {c.duration} Min • {c.transfers} Umstiege
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-6 border-t border-white/5">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-white/20" />
+                          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Abfahrt in {Math.round((parseISO(c.departure).getTime() - Date.now()) / 60000)} Min</span>
+                        </div>
+                        <a 
+                          href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(startPoint === 'Aktueller Standort' ? 'current location' : startPoint)}&destination=${encodeURIComponent(destination)}&travelmode=transit`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/90 transition-all shadow-xl shadow-white/5"
+                        >
+                          Öffnen <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </motion.div>
+                  ))}
+                </>
+              ) : (
+                <div className="py-20 text-center">
+                  <p className="text-white/20 text-xs font-bold uppercase tracking-widest">Bereit für die Reiseplanung.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-8 sm:p-10 bg-white/[0.01] border-t border-white/5 text-center">
+              <p className="text-[9px] font-black text-white/10 uppercase tracking-[0.3em] leading-relaxed">
+                DATEN WERDEN IN ECHTZEIT GELADEN.<br />BITTE PRÜFE DIE VERBINDUNGEN VOR ORT.
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
