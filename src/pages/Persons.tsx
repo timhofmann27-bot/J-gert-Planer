@@ -163,19 +163,19 @@ export default function Members() {
               className="p-10 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-white/[0.03] gap-8 transition-all duration-500 group relative overflow-hidden"
             >
               <div className="absolute inset-y-0 left-0 w-1 bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="flex items-center gap-10">
-                <div className="w-20 h-20 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center font-serif text-3xl font-bold text-white shadow-2xl group-hover:scale-105 transition-transform duration-500">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-10">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-[1.5rem] sm:rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center font-serif text-2xl sm:text-3xl font-bold text-white shadow-2xl group-hover:scale-105 transition-transform duration-500">
                   {member.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div className="font-serif text-3xl text-white group-hover:text-white transition-colors mb-2">{member.name}</div>
-                  <div className="flex items-center gap-6">
+                  <div className="font-serif text-2xl sm:text-3xl text-white group-hover:text-white transition-colors mb-2">{member.name}</div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
                     {member.email && <div className="text-xs font-bold text-white/20 uppercase tracking-widest">{member.email}</div>}
                     {member.notes && <div className="text-xs font-medium text-white/10 italic">"{member.notes}"</div>}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2 mt-4 sm:mt-0 self-end sm:self-auto opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => openEdit(member)}
                   className="p-4 text-white/20 hover:text-white hover:bg-white/5 rounded-2xl transition-all"

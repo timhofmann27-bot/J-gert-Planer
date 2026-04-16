@@ -5,6 +5,7 @@ import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+import MapComponent from '../components/MapComponent';
 
 function Countdown({ deadline }: { deadline: string }) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -274,6 +275,12 @@ export default function PublicInvite() {
                 </div>
               </div>
             </div>
+
+            {aktion?.location && (
+              <div className="pt-10 border-t border-white/5">
+                <MapComponent location={aktion.location} />
+              </div>
+            )}
 
             {aktion?.description && (
               <div className="pt-10 border-t border-white/5">

@@ -101,7 +101,7 @@ export default function NotificationsMenu({ apiPrefix }: NotificationsMenuProps)
             animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, y: 10, scale: 0.95, filter: 'blur(5px)' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#111] rounded-2xl shadow-2xl border border-white/10 overflow-hidden z-50 backdrop-blur-2xl"
+            className="absolute right-0 mt-2 w-[calc(100vw-48px)] sm:w-96 bg-[#111] rounded-2xl shadow-2xl border border-white/10 overflow-hidden z-50 backdrop-blur-2xl max-w-[400px]"
           >
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
             <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5 relative z-10">

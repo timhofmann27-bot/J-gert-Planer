@@ -6,6 +6,7 @@ import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
+import MapComponent from '../components/MapComponent';
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -400,7 +401,7 @@ export default function EventDetails() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2 mt-4 sm:mt-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => handleResendInvite(invitee.id)}
                           className="p-3 text-white/20 hover:text-white hover:bg-white/5 rounded-xl transition-all"
@@ -428,6 +429,13 @@ export default function EventDetails() {
 
         {/* Sidebar: Actions & Info */}
         <div className="space-y-8">
+          {/* Action Map */}
+          {aktion?.location && (
+            <div className="bg-white/[0.02] rounded-[2.5rem] p-2 border border-white/5 shadow-2xl overflow-hidden">
+              <MapComponent location={aktion.location} />
+            </div>
+          )}
+
           {/* Add Person Card */}
           <div className="bg-white rounded-[2.5rem] p-10 text-black shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-black/[0.03] rounded-bl-[5rem] -mr-10 -mt-10 transition-transform group-hover:scale-110" />
@@ -490,7 +498,7 @@ export default function EventDetails() {
                 <div key={step.id} className="bg-white/5 p-6 rounded-3xl border border-white/5 group">
                   <div className="flex justify-between items-start mb-3">
                     <div className="font-serif text-lg font-bold text-white">{step.name}</div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => { setEditingStep(step); setStepFormData({ name: step.name, message: step.message, scheduled_at: step.scheduled_at || '' }); setShowStepModal(true); }} className="text-white/20 hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
                       <button onClick={() => handleDeleteStep(step.id)} className="text-white/20 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </div>

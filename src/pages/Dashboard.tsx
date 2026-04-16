@@ -138,21 +138,23 @@ export default function Dashboard() {
         className="bg-white/[0.02] backdrop-blur-sm rounded-[2.5rem] border border-white/5 p-10 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-500 group flex flex-col relative overflow-hidden h-full shadow-2xl"
       >
         <div className="absolute top-0 left-0 w-1 h-0 bg-white group-hover:h-full transition-all duration-700" />
-        <div className="absolute top-8 right-8 flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-4 group-hover:translate-y-0 z-10">
-          <button onClick={(e) => handleArchive(e, aktion.id, !!aktion.is_archived)} className={`p-2.5 bg-black/80 backdrop-blur-md border border-white/10 ${aktion.is_archived ? 'text-blue-400' : 'text-white/60'} hover:text-blue-400 rounded-full transition-colors`}>
-            <Archive className="w-4 h-4" />
-          </button>
-          <button onClick={(e) => openEdit(e, aktion)} className="p-2.5 bg-black/80 backdrop-blur-md border border-white/10 text-white/60 hover:text-white rounded-full transition-colors">
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteId(aktion.id); }} className="p-2.5 bg-black/80 backdrop-blur-md border border-white/10 text-white/60 hover:text-red-400 rounded-full transition-colors">
-            <Trash2 className="w-4 h-4" />
-          </button>
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-4">
+          <h3 className="font-serif text-2xl text-white group-hover:text-white/90 transition-colors leading-tight flex-1">
+            {aktion?.title}
+          </h3>
+          <div className="flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all z-10 shrink-0">
+            <button onClick={(e) => handleArchive(e, aktion.id, !!aktion.is_archived)} className={`p-2 bg-black/80 backdrop-blur-md border border-white/10 ${aktion.is_archived ? 'text-blue-400' : 'text-white/60'} hover:text-blue-400 rounded-full transition-colors`}>
+              <Archive className="w-4 h-4" />
+            </button>
+            <button onClick={(e) => openEdit(e, aktion)} className="p-2 bg-black/80 backdrop-blur-md border border-white/10 text-white/60 hover:text-white rounded-full transition-colors">
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteId(aktion.id); }} className="p-2 bg-black/80 backdrop-blur-md border border-white/10 text-white/60 hover:text-red-400 rounded-full transition-colors">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         
-        <h3 className="font-serif text-2xl text-white mb-4 pr-20 group-hover:text-white/90 transition-colors leading-tight">
-          {aktion?.title}
-        </h3>
         <div className="space-y-4 text-sm text-white/40 flex-1">
           <div className="flex items-center gap-4">
             <Clock className="w-4 h-4 text-white/20" />
