@@ -250,21 +250,21 @@ export default function EventDetails() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="bg-white/[0.02] rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden mb-16 relative"
+        className="bg-white/[0.02] rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden mb-12 sm:mb-16 relative"
       >
-        <div className="h-64 bg-gradient-to-br from-white/[0.05] to-transparent relative overflow-hidden">
+        <div className="h-48 sm:h-64 bg-gradient-to-br from-white/[0.05] to-transparent relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.05)_0%,transparent_70%)]" />
         </div>
-        <div className="px-12 pb-12 -mt-24 relative z-10">
-          <div className="flex flex-col md:flex-row items-end justify-between gap-8">
+        <div className="px-6 pb-8 sm:px-12 sm:pb-12 -mt-16 sm:-mt-24 relative z-10">
+          <div className="flex flex-col md:flex-row items-end justify-between gap-6 sm:gap-8">
             <div className="flex-1">
-              <div className="w-32 h-32 bg-[#050505] rounded-3xl shadow-2xl border border-white/10 flex items-center justify-center mb-8 overflow-hidden backdrop-blur-xl">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 bg-[#050505] rounded-[1.5rem] sm:rounded-3xl shadow-2xl border border-white/10 flex items-center justify-center mb-6 sm:mb-8 overflow-hidden backdrop-blur-xl">
                 <div className="bg-white/5 w-full h-full flex flex-col items-center justify-center text-white">
-                  <span className="text-xs font-bold uppercase text-white/30 tracking-[0.2em] mb-1">{aktion?.date ? format(parseISO(aktion.date), 'MMM', { locale: de }) : '-'}</span>
-                  <span className="text-5xl font-serif font-bold leading-none">{aktion?.date ? format(parseISO(aktion.date), 'dd') : '-'}</span>
+                  <span className="text-[10px] sm:text-xs font-bold uppercase text-white/30 tracking-[0.2em] mb-1">{aktion?.date ? format(parseISO(aktion.date), 'MMM', { locale: de }) : '-'}</span>
+                  <span className="text-4xl sm:text-5xl font-serif font-bold leading-none">{aktion?.date ? format(parseISO(aktion.date), 'dd') : '-'}</span>
                 </div>
               </div>
-              <h1 className="text-5xl font-serif font-bold text-white mb-6 tracking-tight">{aktion?.title || '-'}</h1>
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-6 tracking-tight">{aktion?.title || '-'}</h1>
               <div className="flex flex-wrap gap-4">
                 <span className="flex items-center gap-3 font-medium bg-white/5 px-5 py-3 rounded-2xl border border-white/5 text-white/60">
                   <Clock className="w-4 h-4 text-white/20" /> 
@@ -289,7 +289,7 @@ export default function EventDetails() {
             </button>
           </div>
           {aktion.description && (
-            <div className="mt-12 p-8 bg-white/5 rounded-[2rem] border border-white/5 text-white/60 text-lg leading-relaxed font-medium">
+            <div className="mt-8 sm:mt-12 p-6 sm:p-8 bg-white/5 rounded-[2rem] border border-white/5 text-white/60 text-base sm:text-lg leading-relaxed font-medium">
               {aktion.description}
             </div>
           )}
@@ -297,7 +297,7 @@ export default function EventDetails() {
       </motion.div>
 
       {/* Stats Visualization */}
-      <div className="bg-white/[0.02] p-10 rounded-[3rem] border border-white/5 shadow-2xl mb-16">
+      <div className="bg-white/[0.02] p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem] border border-white/5 shadow-2xl mb-12 sm:mb-16">
         <div className="flex justify-between items-end mb-6">
           <h3 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">Teilnehmer-Status</h3>
           <span className="text-sm font-bold text-white/40">{stats.yes + stats.no + stats.maybe} / {stats.total} Antworten</span>
@@ -313,13 +313,13 @@ export default function EventDetails() {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
             { label: 'Zusagen', count: stats.yes, total: stats.total, color: 'green' },
             { label: 'Absagen', count: stats.no, total: stats.total, color: 'red' },
             { label: 'Vielleicht', count: stats.maybe, total: stats.total, color: 'amber' }
           ].map((s) => (
-            <div key={s.label} className={`bg-${s.color}-500/5 p-6 rounded-3xl border border-${s.color}-500/10`}>
+            <div key={s.label} className={`bg-${s.color}-500/5 p-5 sm:p-6 rounded-[2rem] sm:rounded-3xl border border-${s.color}-500/10`}>
               <div className={`text-[10px] font-bold text-${s.color}-400/60 uppercase tracking-widest mb-2`}>{s.label}</div>
               <div className="flex items-baseline gap-2">
                 <div className={`text-3xl font-serif font-bold text-${s.color}-400`}>{s.count}</div>
@@ -335,9 +335,9 @@ export default function EventDetails() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Main Content: Invites List */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white/[0.02] rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden">
-            <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
-              <h2 className="text-2xl font-serif font-bold text-white flex items-center gap-4">
+          <div className="bg-white/[0.02] rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden">
+            <div className="p-6 sm:p-8 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/5">
+              <h2 className="text-xl sm:text-2xl font-serif font-bold text-white flex items-center gap-4">
                 Teilnehmer
                 <span className="text-sm font-sans font-bold text-white/20 bg-white/5 px-3 py-1 rounded-full">{invites.length}</span>
               </h2>
@@ -359,8 +359,8 @@ export default function EventDetails() {
                 filteredInvitees.map((invitee: any) => (
                   <div key={invitee.id} className="p-6 hover:bg-white/[0.03] transition-colors group">
                     <div className="flex items-center justify-between gap-6">
-                      <div className="flex items-center gap-6">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 font-serif text-xl font-bold ${
+                      <div className="flex items-center gap-4 sm:gap-6">
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shrink-0 font-serif text-lg sm:text-xl font-bold ${
                           invitee.status === 'yes' ? 'bg-green-500/10 text-green-400 border border-green-500/10' :
                           invitee.status === 'no' ? 'bg-red-500/10 text-red-400 border border-red-500/10' :
                           invitee.status === 'maybe' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/10' :
@@ -369,7 +369,7 @@ export default function EventDetails() {
                           {(invitee.name_snapshot || invitee.current_name || '?').charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-serif text-xl text-white flex items-center gap-3">
+                          <div className="font-serif text-lg sm:text-xl text-white flex items-center gap-3">
                             {invitee.name_snapshot || invitee.current_name}
                             {invitee.guests_count > 0 && (
                               <span className="text-[10px] bg-white text-black px-2 py-0.5 rounded-full font-bold">
@@ -421,7 +421,7 @@ export default function EventDetails() {
                   </div>
                 ))
               ) : (
-                <div className="p-20 text-center text-white/10 text-lg font-serif">Keine Teilnehmer gefunden.</div>
+                <div className="p-12 sm:p-20 text-center text-white/10 text-base sm:text-lg font-serif">Keine Teilnehmer gefunden.</div>
               )}
             </div>
           </div>
@@ -437,11 +437,11 @@ export default function EventDetails() {
           )}
 
           {/* Add Person Card */}
-          <div className="bg-white rounded-[2.5rem] p-10 text-black shadow-2xl relative overflow-hidden group">
+          <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 text-black shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-black/[0.03] rounded-bl-[5rem] -mr-10 -mt-10 transition-transform group-hover:scale-110" />
             <div className="relative z-10">
-              <h3 className="text-2xl font-serif font-bold mb-3">Einladen</h3>
-              <p className="text-sm text-black/40 mb-8 font-medium leading-relaxed">Wähle Mitglieder aus deinem Netzwerk für dieses Event aus.</p>
+              <h3 className="text-xl sm:text-2xl font-serif font-bold mb-3">Einladen</h3>
+              <p className="text-sm text-black/40 mb-6 sm:mb-8 font-medium leading-relaxed">Wähle Mitglieder aus deinem Netzwerk für dieses Event aus.</p>
               <button 
                 onClick={() => {
                   setSelectedPersonIds([]);
@@ -456,8 +456,8 @@ export default function EventDetails() {
           </div>
 
           {/* Quick Info Card */}
-          <div className="bg-white/[0.02] rounded-[2.5rem] p-10 border border-white/5 shadow-2xl">
-            <h3 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em] mb-8">Event Info</h3>
+          <div className="bg-white/[0.02] rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 border border-white/5 shadow-2xl">
+            <h3 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em] mb-6 sm:mb-8">Event Info</h3>
             <div className="space-y-8">
               <div className="flex gap-5 items-center">
                 <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 border border-white/5">
@@ -483,8 +483,8 @@ export default function EventDetails() {
           </div>
 
           {/* Invitation Steps Card */}
-          <div className="bg-white/[0.02] rounded-[2.5rem] p-10 border border-white/5 shadow-2xl">
-            <div className="flex justify-between items-center mb-8">
+          <div className="bg-white/[0.02] rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 border border-white/5 shadow-2xl">
+            <div className="flex justify-between items-center mb-6 sm:mb-8">
               <h3 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">Workflows</h3>
               <button 
                 onClick={() => { setEditingStep(null); setStepFormData({ name: '', message: '', scheduled_at: '' }); setShowStepModal(true); }} 
@@ -535,11 +535,11 @@ export default function EventDetails() {
       />
 
       {showStepModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 backdrop-blur-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 sm:p-6 z-50 backdrop-blur-2xl">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-md w-full p-12 relative overflow-hidden"
+            className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-md w-full p-6 sm:p-12 relative overflow-hidden"
           >
             <h2 className="text-3xl font-serif font-bold mb-8 text-white">{editingStep ? 'Schritt bearbeiten' : 'Neuer Schritt'}</h2>
             <form onSubmit={handleSaveStep} className="space-y-6">
@@ -555,9 +555,9 @@ export default function EventDetails() {
                 <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-1">Geplant für (optional)</label>
                 <input type="datetime-local" value={stepFormData.scheduled_at} onChange={e => setStepFormData({...stepFormData, scheduled_at: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none focus:ring-2 focus:ring-white/10 transition-all [color-scheme:dark]" />
               </div>
-              <div className="flex gap-4 pt-6">
-                <button type="button" onClick={() => setShowStepModal(false)} className="flex-1 px-6 py-4 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
-                <button type="submit" className="flex-1 px-6 py-4 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                <button type="button" onClick={() => setShowStepModal(false)} className="w-full sm:flex-1 px-6 py-4 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
+                <button type="submit" className="w-full sm:flex-1 px-6 py-4 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
               </div>
             </form>
           </motion.div>
@@ -565,13 +565,13 @@ export default function EventDetails() {
       )}
 
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 backdrop-blur-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 sm:p-6 z-50 backdrop-blur-2xl">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-xl w-full p-12 max-h-[90vh] overflow-y-auto relative overflow-hidden"
+            className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-xl w-full p-6 sm:p-12 max-h-[90vh] overflow-y-auto relative overflow-hidden"
           >
-            <h2 className="text-4xl font-serif font-bold mb-10 text-white tracking-tight">Aktion bearbeiten</h2>
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold mb-8 sm:mb-10 text-white tracking-tight">Aktion bearbeiten</h2>
             <form onSubmit={handleEditSubmit} className="space-y-8">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-1">Titel</label>
@@ -599,9 +599,9 @@ export default function EventDetails() {
                 <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-1">Antwortfrist</label>
                 <input type="datetime-local" value={formData.response_deadline} onChange={e => setFormData({...formData, response_deadline: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:ring-2 focus:ring-white/10 outline-none transition-all [color-scheme:dark]" />
               </div>
-              <div className="flex gap-4 pt-8">
-                <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
-                <button type="submit" className="flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
+              <div className="flex flex-col sm:flex-row gap-4 pt-8">
+                <button type="button" onClick={() => setShowEditModal(false)} className="w-full sm:flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
+                <button type="submit" className="w-full sm:flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
               </div>
             </form>
           </motion.div>
@@ -609,11 +609,11 @@ export default function EventDetails() {
       )}
 
       {showBulkInviteModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 backdrop-blur-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 sm:p-6 z-50 backdrop-blur-2xl">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-md w-full p-12 max-h-[90vh] flex flex-col relative overflow-hidden"
+            className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-md w-full p-6 sm:p-12 max-h-[90vh] flex flex-col relative overflow-hidden"
           >
             <h2 className="text-3xl font-serif font-bold mb-8 text-white tracking-tight">Personen wählen</h2>
             
@@ -649,12 +649,12 @@ export default function EventDetails() {
               )}
             </div>
 
-            <div className="flex gap-4">
-              <button onClick={() => setShowBulkInviteModal(false)} className="flex-1 px-6 py-4 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button onClick={() => setShowBulkInviteModal(false)} className="w-full sm:flex-1 px-6 py-4 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
               <button 
                 onClick={handleBulkInvite} 
                 disabled={selectedPersonIds.length === 0}
-                className="flex-1 px-6 py-4 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                className="w-full sm:flex-1 px-6 py-4 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
               >
                 Einladen
               </button>

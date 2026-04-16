@@ -188,7 +188,7 @@ export default function PublicInvite() {
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="bg-white/[0.02] p-12 rounded-[3rem] shadow-2xl border border-white/5 text-center max-w-md w-full relative overflow-hidden"
+          className="bg-white/[0.02] p-6 sm:p-12 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-white/5 text-center max-w-md w-full relative overflow-hidden"
         >
           <div className="relative z-10">
             <motion.div 
@@ -233,21 +233,21 @@ export default function PublicInvite() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] py-24 px-6">
+    <div className="min-h-screen bg-[#050505] py-12 sm:py-24 px-4 sm:px-6">
       <div className="max-w-2xl mx-auto space-y-12">
         {/* Header / Aktion Info */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="bg-white/[0.02] rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden relative"
+          className="bg-white/[0.02] rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden relative"
         >
-          <div className="bg-white/5 p-12 text-center border-b border-white/5 relative z-10">
-            <h1 className="text-5xl font-serif font-bold mb-4 text-white tracking-tight leading-tight">{aktion?.title}</h1>
-            <p className="text-white/40 font-medium text-xl">Hallo {invitee?.name_snapshot || invitee?.name}, du bist eingeladen!</p>
+          <div className="bg-white/5 p-8 sm:p-12 text-center border-b border-white/5 relative z-10">
+            <h1 className="text-4xl sm:text-5xl font-serif font-bold mb-4 text-white tracking-tight leading-tight">{aktion?.title}</h1>
+            <p className="text-white/40 font-medium text-lg sm:text-xl">Hallo {invitee?.name_snapshot || invitee?.name}, du bist eingeladen!</p>
           </div>
           
-          <div className="p-12 space-y-10 relative z-10">
+          <div className="p-8 sm:p-12 space-y-10 relative z-10">
             <div className="grid sm:grid-cols-2 gap-10">
               <div className="flex items-start gap-5">
                 <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center shrink-0 border border-white/5">
@@ -301,7 +301,7 @@ export default function PublicInvite() {
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }} 
           onSubmit={handleSubmit} 
-          className="bg-white/[0.02] rounded-[3rem] shadow-2xl border border-white/5 p-12"
+          className="bg-white/[0.02] rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-white/5 p-8 sm:p-12"
         >
           <h2 className="text-3xl font-serif font-bold text-white mb-10 tracking-tight">Deine Antwort</h2>
           
@@ -388,7 +388,7 @@ export default function PublicInvite() {
             initial={{ opacity: 0, y: 20 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }} 
-            className="bg-white/[0.02] rounded-[3rem] shadow-2xl border border-white/5 p-12 relative overflow-hidden"
+            className="bg-white/[0.02] rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-white/5 p-8 sm:p-12 relative overflow-hidden"
           >
             <h2 className="text-3xl font-serif font-bold text-white mb-4 tracking-tight relative z-10">
               Profil erstellen

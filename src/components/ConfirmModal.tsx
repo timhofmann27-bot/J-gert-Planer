@@ -19,11 +19,11 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onCanc
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-sm w-full p-12 relative overflow-hidden"
+            className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-sm w-full p-6 sm:p-12 relative overflow-hidden"
           >
             <button 
               onClick={onCancel} 
-              className="absolute top-8 right-8 text-white/20 hover:text-white transition-colors z-10"
+              className="absolute top-6 right-6 sm:top-8 sm:right-8 text-white/20 hover:text-white transition-colors z-10"
             >
               <X className="w-6 h-6" />
             </button>

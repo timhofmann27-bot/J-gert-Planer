@@ -130,8 +130,8 @@ export default function Members() {
     <div className="pb-24">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8 mb-16">
         <div>
-          <h1 className="text-5xl font-serif font-bold text-white tracking-tight mb-3">Mitglieder</h1>
-          <p className="text-white/40 font-medium text-lg">Verwalte dein Netzwerk und lade Personen ein.</p>
+          <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white tracking-tight mb-3">Mitglieder</h1>
+          <p className="text-white/40 font-medium text-base sm:text-lg">Verwalte dein Netzwerk und lade Personen ein.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
           <button
@@ -160,7 +160,7 @@ export default function Members() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
               key={member.id} 
-              className="p-10 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-white/[0.03] gap-8 transition-all duration-500 group relative overflow-hidden"
+              className="p-6 sm:p-10 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-white/[0.03] gap-6 sm:gap-8 transition-all duration-500 group relative overflow-hidden"
             >
               <div className="absolute inset-y-0 left-0 w-1 bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-10">
@@ -198,7 +198,7 @@ export default function Members() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="p-32 text-center relative overflow-hidden"
+              className="py-16 sm:py-32 px-6 text-center relative overflow-hidden"
             >
               <div className="w-24 h-24 bg-white/[0.02] rounded-[2rem] flex items-center justify-center mx-auto mb-10 border border-white/5 shadow-2xl">
                 <Users className="w-12 h-12 text-white/10" />
@@ -210,11 +210,11 @@ export default function Members() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 backdrop-blur-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 sm:p-6 z-50 backdrop-blur-2xl">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-md w-full p-12 relative overflow-hidden"
+            className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-md w-full p-6 sm:p-12 relative overflow-hidden"
           >
             <h2 className="text-3xl font-serif font-bold mb-10 text-white tracking-tight">{editingMember ? 'Mitglied bearbeiten' : 'Neues Mitglied'}</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -255,9 +255,9 @@ export default function Members() {
                   rows={3}
                 ></textarea>
               </div>
-              <div className="flex gap-4 pt-8">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
-                <button type="submit" className="flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
+              <div className="flex flex-col sm:flex-row gap-4 pt-8">
+                <button type="button" onClick={() => setShowModal(false)} className="w-full sm:flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
+                <button type="submit" className="w-full sm:flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
               </div>
             </form>
           </motion.div>
@@ -265,11 +265,11 @@ export default function Members() {
       )}
 
       {showBulkModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 backdrop-blur-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 sm:p-6 z-50 backdrop-blur-2xl">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-md w-full p-12 relative overflow-hidden"
+            className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-md w-full p-6 sm:p-12 relative overflow-hidden"
           >
             <h2 className="text-3xl font-serif font-bold mb-6 flex items-center gap-4 text-white tracking-tight">
               Alle einladen
@@ -292,9 +292,9 @@ export default function Members() {
                   ))}
                 </select>
               </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowBulkModal(false)} className="flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
-                <button type="submit" disabled={isInviting || !selectedAktionId} className="flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all disabled:opacity-20 flex items-center justify-center gap-3">
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button type="button" onClick={() => setShowBulkModal(false)} className="w-full sm:flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
+                <button type="submit" disabled={isInviting || !selectedAktionId} className="w-full sm:flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all disabled:opacity-20 flex items-center justify-center gap-3">
                   {isInviting ? 'Lädt...' : 'Einladen'}
                 </button>
               </div>

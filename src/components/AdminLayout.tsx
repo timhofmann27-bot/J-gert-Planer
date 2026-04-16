@@ -36,8 +36,8 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col selection:bg-white/20">
       <header className="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 lg:px-10 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-6 md:gap-12">
             <Link to="/" className="flex items-center gap-3 text-white font-serif text-xl tracking-tight group">
               <div className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center transition-transform group-hover:scale-105">
                 <Calendar className="w-5 h-5" />
@@ -81,7 +81,7 @@ export default function AdminLayout() {
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6 sm:px-8 lg:px-10 py-10 pb-32 md:pb-10 relative">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-10 pb-32 md:pb-10 relative">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 10 }}

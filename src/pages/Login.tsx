@@ -73,7 +73,7 @@ export default function Login() {
           <p className="text-white/30 font-medium text-lg">Bitte melde dich an, um fortzufahren.</p>
         </div>
 
-        <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+        <div className="bg-white/[0.02] backdrop-blur-3xl border border-white/5 p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl relative overflow-hidden">
           {/* Inner subtle glow */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
 

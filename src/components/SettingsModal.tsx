@@ -85,11 +85,11 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-md w-full p-12 relative overflow-y-auto max-h-[90vh] overflow-hidden"
+        className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-md w-full p-6 sm:p-12 relative overflow-y-auto max-h-[90vh] overflow-hidden"
       >
         <button 
           onClick={onClose} 
-          className="absolute top-8 right-8 text-white/20 hover:text-white transition-colors z-10"
+          className="absolute top-6 right-6 sm:top-8 sm:right-8 text-white/20 hover:text-white transition-colors z-10"
         >
           <X className="w-6 h-6" />
         </button>

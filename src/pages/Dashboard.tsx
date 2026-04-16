@@ -135,7 +135,7 @@ export default function Dashboard() {
     >
       <Link
         to={`/events/${aktion.id}`}
-        className="bg-white/[0.02] backdrop-blur-sm rounded-[2.5rem] border border-white/5 p-10 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-500 group flex flex-col relative overflow-hidden h-full shadow-2xl"
+        className="bg-white/[0.02] backdrop-blur-sm rounded-[2rem] sm:rounded-[2.5rem] border border-white/5 p-6 sm:p-10 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-500 group flex flex-col relative overflow-hidden h-full shadow-2xl"
       >
         <div className="absolute top-0 left-0 w-1 h-0 bg-white group-hover:h-full transition-all duration-700" />
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-4">
@@ -193,8 +193,8 @@ export default function Dashboard() {
     <div className="pb-24">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8 mb-16">
         <div>
-          <h1 className="text-5xl font-serif font-bold text-white tracking-tight mb-3">Aktionen</h1>
-          <p className="text-white/40 font-medium text-lg">Verwalte deine Veranstaltungen und Teilnehmer.</p>
+          <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white tracking-tight mb-3">Aktionen</h1>
+          <p className="text-white/40 font-medium text-base sm:text-lg">Verwalte deine Veranstaltungen und Teilnehmer.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
           <button
@@ -227,11 +227,11 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white/[0.02] p-10 rounded-[2.5rem] border border-white/5 shadow-2xl"
+              className="bg-white/[0.02] p-6 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] border border-white/5 shadow-2xl"
             >
-              <div className="text-white/20 text-[10px] uppercase tracking-[0.3em] font-bold mb-6">{stat.label}</div>
-              <div className="flex items-baseline gap-3">
-                <div className="text-5xl font-serif font-bold text-white">{stat.value}</div>
+              <div className="text-white/20 text-[10px] uppercase tracking-[0.3em] font-bold mb-4 sm:mb-6">{stat.label}</div>
+              <div className="flex items-baseline gap-2 sm:gap-3">
+                <div className="text-3xl sm:text-5xl font-serif font-bold text-white">{stat.value}</div>
                 {stat.sub && <div className="text-xs font-bold text-white/20">{stat.sub}</div>}
               </div>
             </motion.div>
@@ -287,7 +287,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="col-span-full text-center py-32 bg-white/[0.02] rounded-[3rem] border border-dashed border-white/10 backdrop-blur-xl relative overflow-hidden"
+          className="col-span-full text-center py-16 sm:py-32 px-6 bg-white/[0.02] rounded-[2rem] sm:rounded-[3rem] border border-dashed border-white/10 backdrop-blur-xl relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
           <motion.div 
@@ -311,13 +311,13 @@ export default function Dashboard() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 backdrop-blur-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 sm:p-6 z-50 backdrop-blur-2xl">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#050505] border border-white/10 rounded-[3rem] shadow-2xl max-w-xl w-full p-12 max-h-[90vh] overflow-y-auto relative overflow-hidden"
+            className="bg-[#050505] border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl max-w-xl w-full p-6 sm:p-12 max-h-[90vh] overflow-y-auto relative overflow-hidden"
           >
-            <h2 className="text-4xl font-serif font-bold mb-10 text-white tracking-tight">{editingAktion ? 'Aktion bearbeiten' : 'Neue Aktion'}</h2>
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold mb-8 sm:mb-10 text-white tracking-tight">{editingAktion ? 'Aktion bearbeiten' : 'Neue Aktion'}</h2>
             <form onSubmit={handleSubmit} className="space-y-8">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-1">Titel</label>
@@ -346,9 +346,9 @@ export default function Dashboard() {
                 <input type="datetime-local" value={formData.response_deadline} onChange={e => setFormData({...formData, response_deadline: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:ring-2 focus:ring-white/10 outline-none transition-all [color-scheme:dark]" />
                 <p className="text-[10px] text-white/20 mt-3 font-medium ml-1">Nach diesem Datum können Teilnehmer nicht mehr antworten.</p>
               </div>
-              <div className="flex gap-4 pt-8">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
-                <button type="submit" className="flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
+              <div className="flex flex-col sm:flex-row gap-4 pt-8">
+                <button type="button" onClick={() => setShowModal(false)} className="w-full sm:flex-1 px-8 py-5 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all">Abbrechen</button>
+                <button type="submit" className="w-full sm:flex-1 px-8 py-5 bg-white text-black rounded-2xl font-bold hover:bg-white/90 transition-all">Speichern</button>
               </div>
             </form>
           </motion.div>
