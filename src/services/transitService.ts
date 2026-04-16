@@ -29,56 +29,90 @@ export interface TransitProvider {
   fetchJourneys(from: string, to: string, when?: string): Promise<TransitConnection[]>;
 }
 
+// Client-side cache for locations and journeys to avoid redundant network calls
+const locationCache = new Map<string, string>();
+const journeyCache = new Map<string, { data: TransitConnection[], timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+
 /**
  * HAFAS / transport.rest Provider Implementation (Default)
  * Optimized for EU / DE context
  */
 class HafasProvider implements TransitProvider {
+  // Memoized coordinate check - much faster for high-frequency calls
+  private readonly coordRegex = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/;
+  private isCoords(str: string) { return this.coordRegex.test(str); }
+
   async fetchJourneys(from: string, to: string, when?: string): Promise<TransitConnection[]> {
+    const cacheKey = `${from}-${to}-${when || 'now'}`;
+    const cached = journeyCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      return cached.data;
+    }
+
     const params = new URLSearchParams();
     params.append('results', '4');
     params.append('stopovers', 'false');
+    if (when) params.append('when', when);
 
-    if (when) {
-      params.append('when', when);
-    }
+    // Optimized resolution with local caching
+    const resolve = async (val: string, type: 'from' | 'to') => {
+      if (this.isCoords(val)) {
+        const [lat, lon] = val.split(',').map(s => s.trim());
+        params.append(`${type}.latitude`, lat);
+        params.append(`${type}.longitude`, lon);
+        params.append(`${type}.name`, type === 'from' ? 'Start' : 'Ziel');
+      } else {
+        if (locationCache.has(val)) {
+          params.append(type, locationCache.get(val)!);
+          return;
+        }
 
-    // Helper to detect coordinates (handles potential spaces)
-    const coordRegex = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/;
-    const isCoords = (str: string) => coordRegex.test(str);
-
-    if (isCoords(from)) {
-      const [lat, lon] = from.split(',').map(s => s.trim());
-      params.append('from.latitude', lat);
-      params.append('from.longitude', lon);
-      params.append('from.name', 'Start');
-    } else {
-      params.append('from', from);
-    }
-
-    if (isCoords(to)) {
-      const [lat, lon] = to.split(',').map(s => s.trim());
-      params.append('to.latitude', lat);
-      params.append('to.longitude', lon);
-      params.append('to.name', 'Ziel');
-    } else {
-      params.append('to', to);
-    }
-
-    // Switch to VBB as primary request from the Principal Engineer prompt
-    const response = await fetch(`https://v6.vbb.transport.rest/journeys?${params.toString()}`);
-    
-    if (!response.ok) {
-      // Fallback to DB if VBB fails for outside-Berlin locations
-      const dbResponse = await fetch(`https://v6.db.transport.rest/journeys?${params.toString()}`);
-      if (!dbResponse.ok) {
-        const errData = await dbResponse.json().catch(() => ({}));
-        throw new Error(errData.message || 'Keine Route gefunden');
+        try {
+          const locRes = await fetch(`https://v6.db.transport.rest/locations?query=${encodeURIComponent(val)}&results=1`);
+          if (locRes.ok) {
+            const locData = await locRes.json();
+            if (locData.length > 0 && locData[0].id) {
+              const id = locData[0].id;
+              locationCache.set(val, id);
+              params.append(type, id);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Location resolution failed:', e);
+        }
+        params.append(type, val);
       }
-      return this.parseResponse(await dbResponse.json());
+    };
+
+    await Promise.all([resolve(from, 'from'), resolve(to, 'to')]);
+
+    // Race strategy: Request from both VBB and DB in parallel to ensure fastest response
+    // VBB is optimized for regional, DB for national. Parallelizing reduces total wait time.
+    const transportUrls = [
+      `https://v6.vbb.transport.rest/journeys?${params.toString()}`,
+      `https://v6.db.transport.rest/journeys?${params.toString()}`
+    ];
+
+    try {
+      // Promise.any returns the first successful fetch, significantly reducing latency
+      const fastestResponse = await Promise.any(
+        transportUrls.map(url => 
+          fetch(url).then(res => {
+            if (!res.ok) throw new Error('API down');
+            return res.json();
+          })
+        )
+      );
+      
+      const results = this.parseResponse(fastestResponse);
+      journeyCache.set(cacheKey, { data: results, timestamp: Date.now() });
+      return results;
+    } catch (e) {
+      console.warn('All routing APIs failed or returned no results');
+      return [];
     }
-    
-    return this.parseResponse(await response.json());
   }
 
   private parseResponse(data: any): TransitConnection[] {

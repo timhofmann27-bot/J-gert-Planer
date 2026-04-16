@@ -38,6 +38,10 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
   };
 
   const findRoutes = async (start: string) => {
+    if (!destination) {
+      setError('Zielort nicht definiert. Bitte wähle eine Aktion aus.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
