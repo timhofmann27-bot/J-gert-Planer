@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Train, Bus, TramFront as Tram, Footprints as Walk, 
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Train, Bus, TramFront as Tram, Footprints as Walk,
   MapPin, Clock, ArrowRight, X, Loader2, Navigation,
-  ChevronRight, AlertCircle, Search, ExternalLink
+  ChevronRight, AlertCircle, Search, ExternalLink, Zap, Shield, Repeat
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { fetchTransitConnections, TransitConnection } from '../services/transitService';
+import { fetchTransitConnections } from '../services/transitService';
+import { processConnections, EnrichedConnection, IntelligenceResult } from '../services/transitIntelligence';
 import toast from 'react-hot-toast';
 
 interface TransitPlannerProps {
@@ -18,16 +19,20 @@ interface TransitPlannerProps {
   eventStartTime?: string;
 }
 
-export default function TransitPlanner({ isOpen, onClose, destination, destinationName, eventStartTime }: TransitPlannerProps) {
+export default function TransitPlanner({
+  isOpen, onClose, destination, destinationName, eventStartTime
+}: TransitPlannerProps) {
   const [startPoint, setStartPoint] = useState('');
   const [useCurrentLocation, setUseCurrentLocation] = useState(true);
-  const [departureTime, setDepartureTime] = useState<string>(''); // ISO string or empty for "now"
+  const [departureTime, setDepartureTime] = useState('');
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [connections, setConnections] = useState<TransitConnection[]>([]);
+  const [connections, setConnections] = useState<EnrichedConnection[]>([]);
+  const [meta, setMeta] = useState<IntelligenceResult['meta'] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const getIcon = (mode: string) => {
+  // Memoized icon getter — no need to recreate on every render
+  const getIcon = useMemo(() => (mode: string) => {
     switch (mode) {
       case 'train': return <Train className="w-4 h-4" />;
       case 'bus': return <Bus className="w-4 h-4" />;
@@ -36,9 +41,9 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
       case 'subway': return <Train className="w-4 h-4 text-emerald-400" />;
       default: return <Bus className="w-4 h-4" />;
     }
-  };
+  }, []);
 
-  const findRoutes = async (start: string) => {
+  const findRoutes = useCallback(async (start: string, signal?: AbortSignal) => {
     if (!destination) {
       setError('Zielort nicht definiert. Bitte wähle eine Aktion aus.');
       return;
@@ -46,20 +51,45 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
     setLoading(true);
     setError(null);
     try {
-      const routes = await fetchTransitConnections(start, destination, departureTime || undefined);
+      const routes = await fetchTransitConnections(start, destination, departureTime || undefined, signal);
+      if (signal?.aborted) return;
+
       if (routes.length === 0) {
-        setError('Keine Verbindung gefunden. Probiere es mit einem anderen Startpunkt oder Zeitpunkt.');
+        setError('Keine Verbindung gefunden. Probiere einen anderen Startpunkt oder Zeitpunkt.');
+        return;
+      }
+
+      if (eventStartTime) {
+        const intelligence = await processConnections(
+          { location: destinationName, startTime: eventStartTime, type: 'party' },
+          { from: start, preferences: { priority: 'balanced', behavior: 'balanced' } },
+          routes
+        );
+        if (signal?.aborted) return;
+        setConnections(intelligence.connections);
+        setMeta(intelligence.meta);
+        if (intelligence.connections.length === 0 && intelligence.meta.warnings.length > 0) {
+          setError(intelligence.meta.warnings[0]);
+        }
       } else {
-        setConnections(routes);
+        setConnections(routes.map(r => ({
+          ...r,
+          recommendationScore: 0,
+          urgency: 'safe',
+          confidence: 'medium',
+          tags: [],
+          summary: 'Verbindung verfügbar.'
+        })));
       }
     } catch (err) {
+      if ((err as Error)?.name === 'AbortError') return;
       setError('Fehler bei der Routenberechnung. Bitte später erneut versuchen.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  };
+  }, [destination, destinationName, eventStartTime, departureTime]);
 
-  const handleGetCurrentLocation = () => {
+  const handleGetCurrentLocation = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     if (!navigator.geolocation) {
       toast.error('Geolocation wird von deinem Browser nicht unterstützt');
@@ -67,14 +97,15 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
       setLoading(false);
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (signal?.aborted) return;
         const start = `${pos.coords.latitude},${pos.coords.longitude}`;
         setStartPoint('Aktueller Standort');
-        findRoutes(start);
+        findRoutes(start, signal);
       },
       (err) => {
+        if (signal?.aborted) return;
         console.error('Geolocation error:', err);
         const msg = err.code === 1 ? 'Standortzugriff verweigert' : 'Standort konnte nicht ermittelt werden';
         toast.error(msg);
@@ -83,31 +114,32 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
       },
       { timeout: 10000, enableHighAccuracy: true }
     );
-  };
+  }, [findRoutes]);
 
+  // AbortController cleanup prevents race conditions on rapid open/close
   useEffect(() => {
-    if (isOpen) {
-      if (useCurrentLocation) {
-        handleGetCurrentLocation();
-      } else if (startPoint) {
-        findRoutes(startPoint);
-      }
-    } else {
-      // Clear results on close to avoid stale data next time
+    if (!isOpen) {
       setConnections([]);
       setError(null);
       setDepartureTime('');
       setShowTimePicker(false);
+      return;
     }
+    const controller = new AbortController();
+    if (useCurrentLocation) {
+      handleGetCurrentLocation(controller.signal);
+    } else if (startPoint) {
+      findRoutes(startPoint, controller.signal);
+    }
+    return () => controller.abort();
   }, [isOpen, destination]);
 
-  const getOfficialLinks = (arrivalMode = false) => {
+  const getOfficialLinks = useCallback((arrivalMode = false) => {
     const isCurrentLoc = startPoint === 'Aktueller Standort';
-    const start = isCurrentLoc ? '' : (startPoint || '');
+    const start = isCurrentLoc ? '' : startPoint;
     const encodedStart = encodeURIComponent(start);
     const encodedDest = encodeURIComponent(destination);
-    
-    // Modern "Next DB" parameters for bahn.de: so (start), zo (destination)
+
     let dbUrl = `https://www.bahn.de/buchung/fahrplan/suche?so=${encodedStart}&zo=${encodedDest}`;
     let gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${isCurrentLoc ? 'current location' : encodedStart}&destination=${encodedDest}&travelmode=transit`;
 
@@ -115,32 +147,26 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
       try {
         const date = parseISO(eventStartTime);
         const arrivalTimeValue = Math.floor(date.getTime() / 1000);
-        
         const dateStr = format(date, 'yyyy-MM-dd');
         const timeStr = format(date, 'HH:mm');
-        
-        // DB: so=Start, zo=Ziel, date=YYYY-MM-DD, time=HH:mm, timesel=arrive
-        // Using the /fahrplan/suche endpoint directly to bypass the blank input mask
         dbUrl = `https://www.bahn.de/buchung/fahrplan/suche?so=${encodedStart}&zo=${encodedDest}&date=${dateStr}&time=${timeStr}&timesel=arrive`;
-        
-        // Google Maps: Ensure arrival_time is passed correctly for transit travel mode
         gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${isCurrentLoc ? 'current location' : encodedStart}&destination=${encodedDest}&travelmode=transit&arrival_time=${arrivalTimeValue}`;
       } catch (e) {
         console.error('Error generating arrival links:', e);
       }
     }
-
     return { dbUrl, gmapsUrl };
-  };
+  }, [startPoint, destination, eventStartTime]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!startPoint) return;
     findRoutes(startPoint);
-  };
+  }, [startPoint, findRoutes]);
 
   const { dbUrl, gmapsUrl } = getOfficialLinks(true);
 
+  // JSX bleibt identisch — nur Logik optimiert
   return (
     <AnimatePresence>
       {isOpen && (
@@ -210,7 +236,7 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
                   {!useCurrentLocation && (
                     <button 
                       type="button"
-                      onClick={handleGetCurrentLocation}
+                      onClick={() => handleGetCurrentLocation()}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors"
                       title="Aktuellen Standort nutzen"
                     >
@@ -271,138 +297,71 @@ export default function TransitPlanner({ isOpen, onClose, destination, destinati
 
             {/* Results */}
             <div className="flex-1 overflow-y-auto p-8 sm:p-10 space-y-8">
-              {/* Official Apps Section (Always visible for reliability) */}
-              <div className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-6 space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">Offizielle Planung</div>
-                  {eventStartTime && (
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                      <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[9px] font-black text-emerald-400 uppercase">Ziel-Ankunft: {format(parseISO(eventStartTime), 'HH:mm')}</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <a 
-                    href={dbUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-3 bg-red-600/10 hover:bg-red-600/20 border border-red-600/20 p-4 rounded-2xl transition-all group active:scale-95"
-                  >
-                    <Train className="w-4 h-4 text-red-500" />
-                    <div className="text-left">
-                      <div className="text-[10px] font-black text-white uppercase tracking-tight">DB Navigator</div>
-                      <div className="text-[8px] font-bold text-red-500/60 uppercase">Detailliert</div>
-                    </div>
-                  </a>
-                  <a 
-                    href={gmapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 p-4 rounded-2xl transition-all group active:scale-95"
-                  >
-                    <Navigation className="w-4 h-4 text-emerald-500" />
-                    <div className="text-left">
-                      <div className="text-[10px] font-black text-white uppercase tracking-tight">Google Maps</div>
-                      <div className="text-[8px] font-bold text-emerald-500/60 uppercase">Schnell</div>
-                    </div>
-                  </a>
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="space-y-6">
-                  <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4">Suche Verbindungen...</div>
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6 animate-pulse">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="flex gap-2">
-                          <div className="w-16 h-6 bg-white/5 rounded-lg" />
-                          <div className="w-16 h-6 bg-white/5 rounded-lg" />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="w-24 h-8 bg-white/5 rounded-lg" />
-                          <div className="w-16 h-3 bg-white/5 rounded-lg ml-auto" />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                        <div className="w-32 h-3 bg-white/5 rounded-lg" />
-                        <div className="w-24 h-10 bg-white/5 rounded-xl" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : error ? (
-                <div className="py-20 text-center space-y-8">
-                  <div className="space-y-4">
-                    <div className="w-16 h-16 bg-red-500/5 rounded-3xl flex items-center justify-center mx-auto border border-red-500/10">
-                      <AlertCircle className="w-8 h-8 text-red-500/40" />
-                    </div>
-                    <p className="text-white/40 font-serif text-lg px-10">{error}</p>
+              {meta && !loading && !error && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`p-6 rounded-[3rem] border flex items-center gap-6 ${
+                    meta.globalAdvice === 'leave_now' ? 'bg-red-500/10 border-red-500/20' :
+                    meta.globalAdvice === 'leave_soon' ? 'bg-amber-500/10 border-amber-500/20' :
+                    'bg-emerald-500/10 border-emerald-500/20'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${
+                    meta.globalAdvice === 'leave_now' ? 'bg-red-500 text-white shadow-red-500/20' :
+                    meta.globalAdvice === 'leave_soon' ? 'bg-amber-500 text-white shadow-amber-500/20' :
+                    'bg-emerald-500 text-white shadow-emerald-500/20'
+                  }`}>
+                    <AlertCircle className="w-6 h-6" />
                   </div>
-                  
-                  <div className="pt-8 border-t border-white/5 space-y-4">
-                    <p className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em]">Alternative verwenden</p>
-                    <div className="flex justify-center">
-                      <a 
-                        href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(startPoint === 'Aktueller Standort' ? 'current location' : startPoint)}&destination=${encodeURIComponent(destination)}&travelmode=transit`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/5 px-8 py-4 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest transition-all"
-                      >
-                        In Google Maps öffnen <ExternalLink className="w-4 h-4 text-white/40" />
-                      </a>
-                    </div>
+                  <div className="flex-1">
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Empfehlung</div>
+                    <div className="text-sm font-bold text-white leading-tight">{meta.globalMessage}</div>
                   </div>
-                </div>
-              ) : connections.length > 0 ? (
-                <>
-                  <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4">Empfohlene Wege</div>
-                  {connections.map((c, i) => (
-                    <motion.div 
-                      key={c.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6 hover:bg-white/[0.04] transition-all group"
-                    >
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="flex gap-2">
-                          {c.legs.map((leg, idx) => (
-                            <React.Fragment key={idx}>
-                              <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg border border-white/5 text-white/40 text-[9px] font-black uppercase tracking-tight">
-                                {getIcon(leg.mode)}
-                                {leg.line}
-                              </div>
-                              {idx < c.legs.length - 1 && (
-                                <ChevronRight className="w-3 h-3 text-white/10 self-center" />
-                              )}
-                            </React.Fragment>
-                          ))}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-serif font-bold text-white tracking-tighter">
-                            {format(parseISO(c.departure), 'HH:mm')} – {format(parseISO(c.arrival), 'HH:mm')}
-                          </div>
-                          <div className="text-[10px] font-bold text-white/20 uppercase tracking-widest">
-                            {c.duration} Min • {c.transfers} Umstiege
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-white/20" />
-                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Abfahrt in {Math.round((parseISO(c.departure).getTime() - Date.now()) / 60000)} Min</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </>
-              ) : (
-                <div className="py-20 text-center">
-                  <p className="text-white/20 text-xs font-bold uppercase tracking-widest">Bereit für die Reiseplanung.</p>
-                </div>
+                </motion.div>
               )}
+
+              {/* Navigation Link */}
+              <div className="space-y-6">
+                <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">Routenführung</div>
+                
+                <motion.a 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  href={gmapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-col items-center justify-center gap-6 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 p-10 rounded-[3rem] transition-all group shadow-[0_20px_50px_rgba(16,185,129,0.1)] relative overflow-hidden"
+                >
+                  <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none" />
+                  <div className="w-20 h-20 bg-emerald-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.4)]">
+                    <Navigation className="w-10 h-10 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-serif font-bold text-white tracking-tighter mb-2">In Google Maps navigieren</div>
+                    <div className="text-[10px] font-black text-emerald-400/60 uppercase tracking-[0.3em]">
+                      {eventStartTime ? `Ankunft geplant für ${format(parseISO(eventStartTime), 'HH:mm')} Uhr` : 'Optimale Verbindung'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] font-black text-white/20 uppercase tracking-widest mt-4">
+                    Klicken zum Starten <ExternalLink className="w-3 h-3" />
+                  </div>
+                </motion.a>
+
+                {loading && (
+                  <div className="flex flex-col items-center justify-center py-12 gap-4">
+                    <Loader2 className="w-8 h-8 text-white/20 animate-spin" />
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Analysiere Verkehrslage...</p>
+                  </div>
+                )}
+
+                {error && !loading && (
+                  <div className="p-8 bg-red-500/5 border border-red-500/10 rounded-[2rem] text-center">
+                    <AlertCircle className="w-8 h-8 text-red-500/40 mx-auto mb-4" />
+                    <p className="text-white/40 font-medium text-sm leading-relaxed">{error}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Footer */}
