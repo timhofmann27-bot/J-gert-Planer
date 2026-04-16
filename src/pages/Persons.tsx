@@ -137,7 +137,7 @@ export default function Members() {
           <button
             onClick={() => setShowBulkModal(true)}
             disabled={members.length === 0}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/80 px-8 py-4 rounded-2xl hover:bg-white/10 transition-all text-sm font-bold disabled:opacity-20"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/80 px-8 py-4 rounded-2xl hover:bg-white/10 hover:border-white/20 transition-all text-sm font-bold disabled:opacity-20 active:scale-[0.98]"
           >
             <CalendarPlus className="w-4 h-4" />
             <span>Alle einladen</span>
@@ -160,15 +160,19 @@ export default function Members() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
               key={member.id} 
-              className="p-8 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-white/[0.03] gap-6 transition-colors group"
+              className="p-10 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-white/[0.03] gap-8 transition-all duration-500 group relative overflow-hidden"
             >
-              <div className="flex items-center gap-8">
-                <div className="w-16 h-16 rounded-2xl bg-[#050505] border border-white/5 flex items-center justify-center font-serif text-2xl font-bold text-white/40 shadow-2xl">
+              <div className="absolute inset-y-0 left-0 w-1 bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="flex items-center gap-10">
+                <div className="w-20 h-20 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center font-serif text-3xl font-bold text-white shadow-2xl group-hover:scale-105 transition-transform duration-500">
                   {member.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div className="font-serif text-2xl text-white group-hover:text-white transition-colors">{member.name}</div>
-                  {member.notes && <div className="text-sm text-white/20 mt-2 font-medium">{member.notes}</div>}
+                  <div className="font-serif text-3xl text-white group-hover:text-white transition-colors mb-2">{member.name}</div>
+                  <div className="flex items-center gap-6">
+                    {member.email && <div className="text-xs font-bold text-white/20 uppercase tracking-widest">{member.email}</div>}
+                    {member.notes && <div className="text-xs font-medium text-white/10 italic">"{member.notes}"</div>}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 self-end sm:self-auto opacity-0 group-hover:opacity-100 transition-opacity">

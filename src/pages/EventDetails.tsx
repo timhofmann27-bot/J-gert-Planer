@@ -430,6 +430,7 @@ export default function EventDetails() {
         <div className="space-y-8">
           {/* Add Person Card */}
           <div className="bg-white rounded-[2.5rem] p-10 text-black shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-black/[0.03] rounded-bl-[5rem] -mr-10 -mt-10 transition-transform group-hover:scale-110" />
             <div className="relative z-10">
               <h3 className="text-2xl font-serif font-bold mb-3">Einladen</h3>
               <p className="text-sm text-black/40 mb-8 font-medium leading-relaxed">Wähle Mitglieder aus deinem Netzwerk für dieses Event aus.</p>
@@ -438,7 +439,7 @@ export default function EventDetails() {
                   setSelectedPersonIds([]);
                   setShowBulkInviteModal(true);
                 }}
-                className="w-full bg-black text-white py-5 rounded-2xl text-sm font-bold hover:bg-black/90 transition-all flex items-center justify-center gap-3 shadow-xl"
+                className="w-full bg-black text-white py-5 rounded-2xl text-sm font-bold hover:bg-black/90 transition-all flex items-center justify-center gap-3 shadow-xl active:scale-[0.98]"
               >
                 <UserPlus className="w-4 h-4" />
                 Personen wählen

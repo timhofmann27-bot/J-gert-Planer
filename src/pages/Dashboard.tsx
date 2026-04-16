@@ -135,9 +135,10 @@ export default function Dashboard() {
     >
       <Link
         to={`/events/${aktion.id}`}
-        className="bg-white/[0.02] backdrop-blur-sm rounded-3xl border border-white/5 p-8 hover:bg-white/[0.05] hover:border-white/10 transition-all group flex flex-col relative overflow-hidden h-full"
+        className="bg-white/[0.02] backdrop-blur-sm rounded-[2.5rem] border border-white/5 p-10 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-500 group flex flex-col relative overflow-hidden h-full shadow-2xl"
       >
-        <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 z-10">
+        <div className="absolute top-0 left-0 w-1 h-0 bg-white group-hover:h-full transition-all duration-700" />
+        <div className="absolute top-8 right-8 flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-y-4 group-hover:translate-y-0 z-10">
           <button onClick={(e) => handleArchive(e, aktion.id, !!aktion.is_archived)} className={`p-2.5 bg-black/80 backdrop-blur-md border border-white/10 ${aktion.is_archived ? 'text-blue-400' : 'text-white/60'} hover:text-blue-400 rounded-full transition-colors`}>
             <Archive className="w-4 h-4" />
           </button>
@@ -203,7 +204,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={openNew}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-white text-black px-10 py-4 rounded-2xl hover:bg-white/90 transition-all text-sm font-bold shadow-2xl shadow-white/5"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-white text-black px-10 py-4 rounded-2xl hover:bg-white/90 transition-all text-sm font-bold shadow-2xl shadow-white/5 active:scale-[0.98]"
           >
             <Plus className="w-4 h-4" />
             <span>Neue Aktion</span>
