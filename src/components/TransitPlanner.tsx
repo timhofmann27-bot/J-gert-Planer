@@ -50,14 +50,46 @@ export default function TransitPlanner({
     }
     setLoading(true);
     setError(null);
+
+    let searchDate: string | undefined;
+    let isArr = false;
+
+    if (departureTime) {
+      // Create a datetime using the selected time, on the day of the event or today
+      try {
+        const baseDate = eventStartTime ? parseISO(eventStartTime) : new Date();
+        const [hours, minutes] = departureTime.split(':').map(Number);
+        baseDate.setHours(hours, minutes, 0, 0);
+        searchDate = baseDate.toISOString();
+      } catch (e) {}
+    } else if (eventStartTime) {
+      searchDate = eventStartTime;
+      isArr = true; // Arrive by event time
+    }
+
+    // Cache logic: try to load from localStorage first for immediate feedback
+    const cacheKey = `transit_cache_${start}_${destination}_${searchDate || 'now'}_${isArr?'arr':'dep'}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        setConnections(JSON.parse(cached));
+        setLoading(false); // Quick feedback
+      } catch (e) {
+        console.error('Failed to parse cache', e);
+      }
+    }
+
     try {
-      const routes = await fetchTransitConnections(start, destination, departureTime || undefined, signal);
+      const routes = await fetchTransitConnections(start, destination, searchDate, isArr, signal);
       if (signal?.aborted) return;
 
       if (routes.length === 0) {
         setError('Keine Verbindung gefunden. Probiere einen anderen Startpunkt oder Zeitpunkt.');
+        setLoading(false);
         return;
       }
+
+      let processedConnections: EnrichedConnection[] = [];
 
       if (eventStartTime) {
         const intelligence = await processConnections(
@@ -66,24 +98,32 @@ export default function TransitPlanner({
           routes
         );
         if (signal?.aborted) return;
-        setConnections(intelligence.connections);
+        processedConnections = intelligence.connections;
         setMeta(intelligence.meta);
         if (intelligence.connections.length === 0 && intelligence.meta.warnings.length > 0) {
           setError(intelligence.meta.warnings[0]);
         }
       } else {
-        setConnections(routes.map(r => ({
+        processedConnections = routes.map(r => ({
           ...r,
           recommendationScore: 0,
           urgency: 'safe',
           confidence: 'medium',
           tags: [],
           summary: 'Verbindung verfügbar.'
-        })));
+        }));
       }
+
+      setConnections(processedConnections);
+      // Cache the processed results
+      localStorage.setItem(cacheKey, JSON.stringify(processedConnections));
+      
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return;
-      setError('Fehler bei der Routenberechnung. Bitte später erneut versuchen.');
+      // If we don't have cached data and fetch fails, show error
+      if (!cached) {
+        setError('Fehler bei der Routenberechnung. Bitte später erneut versuchen.');
+      }
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -137,25 +177,27 @@ export default function TransitPlanner({
   const getOfficialLinks = useCallback((arrivalMode = false) => {
     const isCurrentLoc = startPoint === 'Aktueller Standort';
     const start = isCurrentLoc ? '' : startPoint;
-    const encodedStart = encodeURIComponent(start);
     const encodedDest = encodeURIComponent(destination);
 
-    let dbUrl = `https://www.bahn.de/buchung/fahrplan/suche?so=${encodedStart}&zo=${encodedDest}`;
-    let gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${isCurrentLoc ? 'current location' : encodedStart}&destination=${encodedDest}&travelmode=transit`;
+    // Maps URL only
+    const gmapsStart = isCurrentLoc ? 'current location' : encodeURIComponent(start);
+    let gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${gmapsStart}&destination=${encodedDest}&travelmode=transit`;
 
     if (arrivalMode && eventStartTime) {
       try {
         const date = parseISO(eventStartTime);
+        
+        // Maps uses UNIX timestamp
         const arrivalTimeValue = Math.floor(date.getTime() / 1000);
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const timeStr = format(date, 'HH:mm');
-        dbUrl = `https://www.bahn.de/buchung/fahrplan/suche?so=${encodedStart}&zo=${encodedDest}&date=${dateStr}&time=${timeStr}&timesel=arrive`;
-        gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${isCurrentLoc ? 'current location' : encodedStart}&destination=${encodedDest}&travelmode=transit&arrival_time=${arrivalTimeValue}`;
+        gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${gmapsStart}&destination=${encodedDest}&travelmode=transit&arrival_time=${arrivalTimeValue}`;
       } catch (e) {
         console.error('Error generating arrival links:', e);
       }
     }
-    return { dbUrl, gmapsUrl };
+    
+    return { 
+      gmapsUrl 
+    };
   }, [startPoint, destination, eventStartTime]);
 
   const handleSearch = useCallback((e: React.FormEvent) => {
@@ -164,7 +206,7 @@ export default function TransitPlanner({
     findRoutes(startPoint);
   }, [startPoint, findRoutes]);
 
-  const { dbUrl, gmapsUrl } = getOfficialLinks(true);
+  const { gmapsUrl } = getOfficialLinks(true);
 
   // JSX bleibt identisch — nur Logik optimiert
   return (
@@ -326,13 +368,60 @@ export default function TransitPlanner({
 
               {/* Navigation Link */}
               <div className="space-y-6">
+                
+                {/* Proposed Connections List */}
+                {connections.length > 0 && !loading && (
+                  <div className="space-y-3 mb-8">
+                    <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">
+                      Nächste Verbindungen
+                    </div>
+                    {connections.slice(0, 3).map((conn, idx) => {
+                      const depTime = format(parseISO(conn.departure), 'HH:mm');
+                      const arrTime = format(parseISO(conn.arrival), 'HH:mm');
+                      const isArrivalMode = !!eventStartTime && !departureTime;
+                      
+                      return (
+                        <div key={conn.id || idx} className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[1.5rem] flex items-center gap-4 transition-all group">
+                          <div className="w-12 h-12 bg-white/5 rounded-2xl flex flex-col items-center justify-center border border-white/5">
+                            <span className="text-[11px] font-bold text-white leading-none mb-1">{depTime}</span>
+                            <span className="text-[9px] font-black text-white/40 leading-none">{arrTime}</span>
+                          </div>
+                          
+                          <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
+                            <div className="flex items-center gap-2 text-white/60 text-[10px] uppercase font-bold tracking-wider">
+                              <span>{conn.duration} Min</span>
+                              <span>•</span>
+                              <span>{conn.transfers} Umstiege</span>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-1.5 mt-0.5">
+                              {conn.legs.map((l: any, i: number) => (
+                                <div key={i} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-lg uppercase text-[9px] font-bold text-white/80 whitespace-nowrap">
+                                  {getModeIcon(l.mode)} {l.line || l.mode}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Emphasize arrival constraint if applicable */}
+                          {isArrivalMode && (
+                             <div className="text-[9px] font-bold text-emerald-400 border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 rounded-lg text-center leading-tight">
+                               Pünktlich<br/>zum Start
+                             </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
                 <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] mb-4 text-center">Routenführung</div>
                 
                 <motion.a 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   href={gmapsUrl}
-                  target="_blank"
+                  target="_top"
                   rel="noopener noreferrer"
                   className="flex flex-col items-center justify-center gap-6 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 p-10 rounded-[3rem] transition-all group shadow-[0_20px_50px_rgba(16,185,129,0.1)] relative overflow-hidden"
                 >

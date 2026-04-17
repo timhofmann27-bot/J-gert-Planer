@@ -19,7 +19,7 @@ export interface TransitConnection {
 }
 
 export interface TransitProvider {
-  fetchJourneys(from: string, to: string, when?: string, signal?: AbortSignal): Promise<TransitConnection[]>;
+  fetchJourneys(from: string, to: string, when?: string, isArrival?: boolean, signal?: AbortSignal): Promise<TransitConnection[]>;
 }
 
 const locationCache = new Map<string, string>();
@@ -30,13 +30,19 @@ class HafasProvider implements TransitProvider {
   private readonly coordRegex = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/;
   private isCoords(str: string) { return this.coordRegex.test(str); }
 
-  async fetchJourneys(from: string, to: string, when?: string, signal?: AbortSignal): Promise<TransitConnection[]> {
-    const cacheKey = `${from}-${to}-${when ?? 'now'}`;
+  async fetchJourneys(from: string, to: string, when?: string, isArrival?: boolean, signal?: AbortSignal): Promise<TransitConnection[]> {
+    const cacheKey = `${from}-${to}-${when ?? 'now'}-${isArrival ? 'arr' : 'dep'}`;
     const cached = journeyCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
 
     const params = new URLSearchParams({ results: '4', stopovers: 'false' });
-    if (when) params.append('when', when);
+    if (when) {
+      if (isArrival) {
+        params.append('arrival', when);
+      } else {
+        params.append('departure', when);
+      }
+    }
 
     const resolve = async (val: string, type: 'from' | 'to') => {
       if (this.isCoords(val)) {
@@ -136,7 +142,7 @@ class HafasProvider implements TransitProvider {
 const activeProvider: TransitProvider = new HafasProvider();
 
 export async function fetchTransitConnections(
-  from: string, to: string, when?: string, signal?: AbortSignal
+  from: string, to: string, when?: string, isArrival?: boolean, signal?: AbortSignal
 ): Promise<TransitConnection[]> {
-  return activeProvider.fetchJourneys(from, to, when, signal);
+  return activeProvider.fetchJourneys(from, to, when, isArrival, signal);
 }

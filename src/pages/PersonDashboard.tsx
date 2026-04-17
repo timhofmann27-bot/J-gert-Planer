@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight, AlertCircle, Train, Settings, ChevronDown } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight, AlertCircle, Train, Settings, ChevronDown, Upload } from 'lucide-react';
 import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
@@ -68,7 +68,24 @@ export default function PersonDashboard() {
   const [loading, setLoading] = useState(true);
   const [transitAktion, setTransitAktion] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 500000) {
+        toast.error('Bild ist zu groß (max 500KB)');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -79,6 +96,12 @@ export default function PersonDashboard() {
         setUser(data.user);
         setIsAdmin(data.isAdmin);
         
+        const profileRes = await fetch('/api/public/profile');
+        if (profileRes.ok) {
+          const pData = await profileRes.json();
+          setAvatarUrl(pData.avatar_url || '');
+        }
+
         const invRes = await fetch('/api/public/dashboard');
         if (invRes.ok) {
           const invData = await invRes.json();
@@ -148,10 +171,16 @@ export default function PersonDashboard() {
             <div className="relative">
               <button 
                 onClick={() => setShowSettings(!showSettings)}
-                className="flex items-center gap-2 bg-white/5 text-white hover:bg-white/10 rounded-2xl border border-white/5 px-4 py-3 transition-all"
+                className="flex items-center gap-2 bg-white/5 text-white hover:bg-white/10 rounded-2xl border border-white/5 p-1 transition-all"
               >
-                <User className="w-5 h-5" />
-                <ChevronDown className={`w-4 h-4 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
+                <div className="w-9 h-9 rounded-xl overflow-hidden bg-white/10 flex items-center justify-center">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-5 h-5 text-white/50" />
+                  )}
+                </div>
+                <ChevronDown className={`w-4 h-4 mr-2 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
               </button>
               
               <AnimatePresence>
@@ -173,6 +202,7 @@ export default function PersonDashboard() {
                           body: JSON.stringify({ 
                             username: target.username.value,
                             name: target.name.value,
+                            avatar_url: avatarUrl,
                             currentPassword: target.currentPassword.value || null,
                             newPassword: target.newPassword.value || null
                           })
@@ -189,6 +219,19 @@ export default function PersonDashboard() {
                         toast.error(e.message || 'Fehler beim Aktualisieren');
                       }
                     }} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-white/20 uppercase tracking-widest pl-1">Profilbild</label>
+                        <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileChange} />
+                        <button 
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full flex items-center gap-3 bg-black/40 border border-white/5 rounded-xl p-3 text-white/50 text-sm hover:text-white transition-all"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Bild aus Galerie auswählen
+                        </button>
+                        {avatarUrl && <img src={avatarUrl} alt="Vorschau" className="w-16 h-16 rounded-xl mt-2 object-cover border border-white/10" />}
+                      </div>
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black text-white/20 uppercase tracking-widest pl-1">Benutzername</label>
                         <input name="username" defaultValue={user?.username} className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-white text-sm" />
@@ -240,42 +283,42 @@ export default function PersonDashboard() {
                 >
                   <Link 
                     to={`/invite/${inv.token}`}
-                    className={`bg-surface-muted p-8 sm:p-12 rounded-[3.5rem] border transition-all flex flex-col sm:flex-row sm:items-center justify-between group relative overflow-hidden gap-10 ${
+                    className={`glass p-8 sm:p-10 rounded-3xl border border-white/5 transition-all flex flex-col sm:flex-row sm:items-center justify-between group relative overflow-hidden gap-8 hover:-translate-y-1 hover:border-white/10 active:scale-[0.98] ${
                       inv.response_deadline && differenceInSeconds(parseISO(inv.response_deadline), new Date()) < 86400 
                       ? 'border-red-500/20 shadow-[0_0_80px_rgba(239,68,68,0.05)] bg-red-500/[0.02]' 
-                      : 'border-white/5 hover:border-white/10 hover:bg-surface-elevated'
+                      : 'hover:bg-white/[0.02]'
                     }`}
                   >
-                    <div className="flex items-start gap-10 relative z-10 font-serif">
-                      <div className="w-20 h-20 bg-surface-elevated rounded-[2.2rem] flex flex-col items-center justify-center text-white/30 shrink-0 border border-white/5 shadow-2xl group-hover:scale-105 transition-transform duration-700 relative overflow-hidden">
+                    <div className="flex items-start gap-8 relative z-10 font-serif">
+                      <div className="w-20 h-20 bg-black/40 rounded-2xl flex flex-col items-center justify-center text-white/30 shrink-0 border border-white/5 shadow-inner group-hover:scale-105 transition-transform duration-700 relative overflow-hidden">
                         <span className="text-[10px] font-black uppercase tracking-[0.3em] mb-1 z-10">{format(parseISO(inv.date), 'MMM', { locale: de })}</span>
                         <span className="text-3xl font-bold leading-none text-white z-10">{format(parseISO(inv.date), 'dd')}</span>
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
                       </div>
-                      <div className="space-y-4">
-                        <h3 className="text-4xl sm:text-5xl text-white group-hover:text-white transition-colors tracking-tighter font-bold leading-tight">{inv.title}</h3>
-                        <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-xs font-bold uppercase tracking-[0.2em] text-white/20">
-                          <span className="flex items-center gap-3"><Clock className="w-4 h-4" /> {format(parseISO(inv.date), 'HH:mm')} Uhr</span>
-                          <span className="flex items-center gap-3"><MapPin className="w-4 h-4" /> {inv.location}</span>
+                      <div className="space-y-2">
+                        <h3 className="text-3xl sm:text-4xl text-white tracking-tighter font-bold leading-tight">{inv.title}</h3>
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                          <span className="flex items-center gap-2"><Clock className="w-3 h-3" /> {format(parseISO(inv.date), 'HH:mm')} Uhr</span>
+                          <span className="flex items-center gap-2"><MapPin className="w-3 h-3" /> {inv.location}</span>
                           <button 
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               setTransitAktion(inv);
                             }}
-                            className="flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-white/40 hover:text-white transition-all active:scale-95"
+                            className="flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-white/40 hover:text-white transition-all active:scale-95"
                           >
-                            <Train className="w-3.5 h-3.5" /> Route
+                            <Train className="w-3 h-3" /> Route
                           </button>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-10 relative z-10 mt-6 sm:mt-0 justify-between sm:justify-end">
+                    <div className="flex items-center gap-6 relative z-10 mt-4 sm:mt-0 justify-between sm:justify-end">
                       {inv.response_deadline && (
                         <Countdown deadline={inv.response_deadline} />
                       )}
-                      <div className="w-16 h-16 rounded-[2rem] bg-surface-elevated flex items-center justify-center group-hover:bg-white/[0.08] transition-all border border-white/5 active:scale-90 shadow-xl">
-                        <ChevronRight className="w-8 h-8 text-white/40 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+                      <div className="w-12 h-12 rounded-2xl bg-black/40 flex items-center justify-center group-hover:bg-white/[0.08] transition-all border border-white/5 shadow-inner">
+                        <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />
                       </div>
                     </div>
                   </Link>

@@ -5,6 +5,7 @@ import { db } from '../db/index.ts';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import sanitizeHtml from 'sanitize-html';
 
 export const apiRouter = Router();
 
@@ -15,6 +16,17 @@ if (!JWT_SECRET) {
 }
 
 const isProd = process.env.NODE_ENV === 'production';
+
+// --- RATE LIMITING ---
+// General API Rate Limiter
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per `window`
+  message: { error: 'Zu viele Anfragen. Bitte später erneut versuchen.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+apiRouter.use(apiLimiter);
 
 // --- AUTH MIDDLEWARE ---
 const requireAuth = (req: any, res: any, next: any) => {
@@ -71,25 +83,27 @@ const loginLimiter = rateLimit({
 });
 
 // --- SCHEMAS ---
+const sanitizeText = (val: string) => sanitizeHtml(val, { allowedTags: [], allowedAttributes: {} });
+
 const loginSchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1)
+  username: z.string().min(1).max(50),
+  password: z.string().min(1).max(100)
 });
 
 const eventSchema = z.object({
-  title: z.string().min(1, 'Titel ist erforderlich'),
-  description: z.string().optional(),
+  title: z.string().min(1, 'Titel ist erforderlich').max(100, 'Titel ist zu lang').transform(sanitizeText),
+  description: z.string().max(2000, 'Beschreibung ist zu lang').optional().transform(v => v ? sanitizeText(v) : v),
   date: z.string().min(1, 'Datum ist erforderlich'),
-  location: z.string().min(1, 'Ort ist erforderlich'),
-  meeting_point: z.string().optional().nullable(),
+  location: z.string().min(1, 'Ort ist erforderlich').max(200, 'Ort ist zu lang').transform(sanitizeText),
+  meeting_point: z.string().max(200, 'Treffpunkt ist zu lang').optional().nullable().transform(v => v ? sanitizeText(v) : v),
   response_deadline: z.string().optional().nullable()
 });
 
 const personSchema = z.object({
-  name: z.string().min(1, 'Name ist erforderlich'),
-  username: z.string().optional().nullable(),
-  email: z.string().email('Ungültige E-Mail Adresse').optional().nullable().or(z.literal('')),
-  notes: z.string().optional().nullable()
+  name: z.string().min(1, 'Name ist erforderlich').max(100).transform(sanitizeText),
+  username: z.string().max(50).optional().nullable().transform(v => v ? sanitizeText(v) : v),
+  email: z.string().email('Ungültige E-Mail Adresse').max(255).optional().nullable().or(z.literal('')),
+  notes: z.string().max(1000).optional().nullable().transform(v => v ? sanitizeText(v) : v)
 });
 
 const inviteSchema = z.object({
@@ -102,30 +116,30 @@ const bulkInviteSchema = z.object({
 
 const respondSchema = z.object({
   status: z.enum(['yes', 'no', 'maybe']),
-  comment: z.string().optional().nullable(),
+  comment: z.string().max(500, 'Anmerkung ist zu lang').optional().nullable().transform(v => v ? sanitizeText(v) : v),
   guests_count: z.number().min(0).max(10).optional().default(0)
 });
 
 const settingsSchema = z.object({
-  username: z.string().min(1, 'Benutzername ist erforderlich'),
-  currentPassword: z.string().optional(),
-  newPassword: z.string().optional()
+  username: z.string().min(1, 'Benutzername ist erforderlich').max(50).transform(sanitizeText),
+  currentPassword: z.string().max(100).optional(),
+  newPassword: z.string().max(100).optional()
 });
 
 const setupProfileSchema = z.object({
-  username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen lang sein'),
-  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein')
+  username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen lang sein').max(50).transform(sanitizeText),
+  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein').max(100)
 });
 
 const registrationRequestSchema = z.object({
-  name: z.string().min(2, 'Name ist zu kurz'),
-  email: z.string().email('Ungültige E-Mail Adresse').optional().or(z.literal(''))
+  name: z.string().min(2, 'Name ist zu kurz').max(100).transform(sanitizeText),
+  email: z.string().email('Ungültige E-Mail Adresse').max(255).optional().or(z.literal(''))
 });
 
 const registerWithCodeSchema = z.object({
-  code: z.string().min(1, 'Code ist erforderlich'),
-  username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen lang sein'),
-  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein')
+  code: z.string().min(1, 'Code ist erforderlich').max(50),
+  username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen lang sein').max(50).transform(sanitizeText),
+  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein').max(100)
 });
 
 // --- AUTH ROUTES ---
@@ -134,9 +148,30 @@ authRouter.post('/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
     const user = db.prepare('SELECT * FROM admin_users WHERE username = ?').get(username) as any;
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    
+    if (!user) {
       return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
     }
+
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      return res.status(429).json({ error: 'Account ist vorübergehend gesperrt. Bitte später erneut versuchen.' });
+    }
+
+    if (!bcrypt.compareSync(password, user.password_hash)) {
+      const attempts = (user.failed_login_attempts || 0) + 1;
+      if (attempts >= 5) {
+        const lockedUntil = new Date(Date.now() + 30 * 60000).toISOString();
+        db.prepare('UPDATE admin_users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?').run(attempts, lockedUntil, user.id);
+        return res.status(429).json({ error: 'Zu viele Fehlversuche. Account ist nun für 30 Minuten gesperrt.' });
+      } else {
+        db.prepare('UPDATE admin_users SET failed_login_attempts = ? WHERE id = ?').run(attempts, user.id);
+        return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+      }
+    }
+
+    // Success - Reset counters
+    db.prepare('UPDATE admin_users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?').run(user.id);
+
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
     res.cookie('admin_token', token, { 
       httpOnly: true, 
@@ -600,14 +635,14 @@ apiRouter.use('/admin', adminRouter);
 const publicRouter = Router();
 
 publicRouter.get('/profile', requirePersonAuth, (req: any, res) => {
-  const user = db.prepare('SELECT username, name FROM persons WHERE id = ?').get(req.person.id) as any;
+  const user = db.prepare('SELECT username, name, avatar_url FROM persons WHERE id = ?').get(req.person.id) as any;
   if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
-  res.json({ username: user.username, name: user.name });
+  res.json({ username: user.username, name: user.name, avatar_url: user.avatar_url });
 });
 
 publicRouter.put('/profile', requirePersonAuth, (req: any, res) => {
   try {
-    const { username, name, currentPassword, newPassword } = req.body;
+    const { username, name, avatar_url, currentPassword, newPassword } = req.body;
     
     const user = db.prepare('SELECT * FROM persons WHERE id = ?').get(req.person.id) as any;
     if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
@@ -621,11 +656,11 @@ publicRouter.put('/profile', requirePersonAuth, (req: any, res) => {
       }
       
       const newHash = bcrypt.hashSync(newPassword, 10);
-      db.prepare('UPDATE persons SET username = ?, name = ?, password_hash = ? WHERE id = ?')
-        .run(username, name, newHash, req.person.id);
+      db.prepare('UPDATE persons SET username = ?, name = ?, avatar_url = ?, password_hash = ? WHERE id = ?')
+        .run(username, name, avatar_url, newHash, req.person.id);
     } else {
-      db.prepare('UPDATE persons SET username = ?, name = ? WHERE id = ?')
-        .run(username, name, req.person.id);
+      db.prepare('UPDATE persons SET username = ?, name = ?, avatar_url = ? WHERE id = ?')
+        .run(username, name, avatar_url, req.person.id);
     }
 
     res.json({ success: true });
@@ -693,9 +728,30 @@ publicRouter.post('/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
     const person = db.prepare('SELECT * FROM persons WHERE username = ? OR name = ?').get(username, username) as any;
-    if (!person || !person.password_hash || !bcrypt.compareSync(password, person.password_hash)) {
+    
+    if (!person || !person.password_hash) {
       return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
     }
+
+    if (person.locked_until && new Date(person.locked_until) > new Date()) {
+      return res.status(429).json({ error: 'Account ist vorübergehend gesperrt. Bitte später erneut versuchen.' });
+    }
+
+    if (!bcrypt.compareSync(password, person.password_hash)) {
+      const attempts = (person.failed_login_attempts || 0) + 1;
+      if (attempts >= 5) {
+        const lockedUntil = new Date(Date.now() + 30 * 60000).toISOString();
+        db.prepare('UPDATE persons SET failed_login_attempts = ?, locked_until = ? WHERE id = ?').run(attempts, lockedUntil, person.id);
+        return res.status(429).json({ error: 'Zu viele Fehlversuche. Account ist nun für 30 Minuten gesperrt.' });
+      } else {
+        db.prepare('UPDATE persons SET failed_login_attempts = ? WHERE id = ?').run(attempts, person.id);
+        return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+      }
+    }
+
+    // Success - Reset counters
+    db.prepare('UPDATE persons SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?').run(person.id);
+
     const token = jwt.sign({ id: person.id, name: person.name, type: 'person' }, JWT_SECRET, { expiresIn: '30d' });
     res.cookie('person_token', token, { 
       httpOnly: true, 

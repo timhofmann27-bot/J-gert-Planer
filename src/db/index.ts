@@ -101,6 +101,13 @@ try {
   }
 }
 
+// Add Account Lock columns (migration)
+const tablesToSecure = ['admin_users', 'persons'];
+for (const table of tablesToSecure) {
+  try { db.exec(`ALTER TABLE ${table} ADD COLUMN failed_login_attempts INTEGER DEFAULT 0`); } catch (e: any) {}
+  try { db.exec(`ALTER TABLE ${table} ADD COLUMN locked_until DATETIME`); } catch (e: any) {}
+}
+
 // Add meeting_point column if it doesn't exist (migration)
 try {
   db.exec('ALTER TABLE events ADD COLUMN meeting_point TEXT');
@@ -145,11 +152,17 @@ try {
   }
 }
 
+try {
+  db.exec('ALTER TABLE persons ADD COLUMN avatar_url TEXT');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) {
+    console.error('Error adding avatar_url column:', e);
+  }
+}
+
 // Create default admins if not exists
 const defaultAdmins = [
-  { username: 'admin', password: process.env.ADMIN_PASSWORD || 'admin123' },
-  { username: 'admin2', password: 'admin2_password' },
-  { username: 'admin3', password: 'admin3_password' }
+  { username: 'admin', password: process.env.ADMIN_PASSWORD || 'admin123' }
 ];
 
 for (const admin of defaultAdmins) {

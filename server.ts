@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { db } from './src/db/index.ts';
 import { apiRouter } from './src/api/index.ts';
 
@@ -11,7 +12,14 @@ async function startServer() {
 
   app.set('trust proxy', 1);
 
-  app.use(express.json());
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: false, // Disabled to prevent blocking inline styles/scripts in Vite/React
+    crossOriginEmbedderPolicy: false // Disabled for map tiles (Leaflet)
+  }));
+  app.disable('x-powered-by'); // Security: hide Express signature
+
+  app.use(express.json({ limit: '1mb' })); // Limit JSON payload size to prevent DoS
   app.use(cookieParser());
 
   // API Routes

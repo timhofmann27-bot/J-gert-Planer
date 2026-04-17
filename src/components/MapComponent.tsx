@@ -1,20 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
-import { MapPin } from 'lucide-react';
+import { MapPin, Star } from 'lucide-react';
+import ReactDOMServer from 'react-dom/server';
 
 // Fix for default marker icons in Leaflet with Vite
-import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+// Create a custom icon for favorited locations
+const favoriteIcon = L.divIcon({
+  html: ReactDOMServer.renderToString(
+    <div className="relative">
+      <MapPin className="w-8 h-8 text-amber-400 drop-shadow-lg" />
+      <Star className="w-4 h-4 text-white absolute -top-1 -right-1 fill-white" />
+    </div>
+  ),
+  className: 'custom-map-marker',
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
 });
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 interface MapComponentProps {
   location: string;
@@ -85,18 +89,19 @@ export default function MapComponent({ location }: MapComponentProps) {
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          className="grayscale-item" // We can style the tiles if wanted, but standard is fine
+          className="grayscale-item"
         />
         <ChangeView center={coords} />
-        <Marker position={coords}>
+        <Marker position={coords} icon={favoriteIcon}>
           <Popup>
-            <div className="font-serif font-bold text-black">{location}</div>
+            <div className="font-serif font-bold text-black flex items-center gap-2">
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              Favorit: {location}
+            </div>
           </Popup>
         </Marker>
       </MapContainer>
       
-      {/* Dark overlay for map to match theme better if needed, but standard OSM is bright. 
-          Alternatively use a dark tile set like CartoDB Dark Matter */}
       <style>{`
         .leaflet-container {
           filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
@@ -113,8 +118,8 @@ export default function MapComponent({ location }: MapComponentProps) {
         .leaflet-popup-tip {
           background: #050505;
         }
-        .leaflet-container .leaflet-marker-icon {
-          filter: invert(100%) hue-rotate(-180deg);
+        .custom-map-marker {
+          filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
         }
       `}</style>
     </div>
