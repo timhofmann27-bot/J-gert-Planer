@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User, AlertCircle, Train, Repeat } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User, AlertCircle, Train, Repeat, MessageSquare, Trash2, Send } from 'lucide-react';
 import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
@@ -89,6 +89,8 @@ export default function PublicInvite() {
   const [guestsCount, setGuestsCount] = useState(0);
   const [checklist, setChecklist] = useState<any[]>([]);
   const [polls, setPolls] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
 
   // Profile setup state
   const [setupUsername, setSetupUsername] = useState('');
@@ -115,6 +117,7 @@ export default function PublicInvite() {
         setGuestsCount(d.invitee.guests_count || 0);
         setChecklist(d.checklist || []);
         setPolls(d.polls || []);
+        setMessages(d.messages || []);
         
         // Suggest username if not set
         if (!d.invitee.has_profile) {
@@ -159,8 +162,42 @@ export default function PublicInvite() {
         const d = await res.json();
         setChecklist(d.checklist || []);
         setPolls(d.polls || []);
+        setMessages(d.messages || []);
       }
     } catch (e) {}
+  };
+
+  const handlePostMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    try {
+      const res = await fetch(`/api/public/invite/${token}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: newMessage })
+      });
+      if (res.ok) {
+        setNewMessage('');
+        fetchUpdatedData();
+      } else {
+        throw new Error('Fehler beim Senden');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: number) => {
+    try {
+      const res = await fetch(`/api/public/invite/${token}/messages/${msgId}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchUpdatedData();
+      } else {
+        throw new Error('Keine Berechtigung zum Löschen');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   const handleClaimItem = async (itemId: number) => {
@@ -691,6 +728,67 @@ export default function PublicInvite() {
               </div>
             </div>
           )}
+
+          {/* Message Board */}
+          <div className="bg-surface-muted rounded-[3.5rem] border border-white/5 p-10 sm:p-20 relative overflow-hidden mt-12">
+            <div className="flex justify-between items-center mb-10">
+              <div>
+                <h2 className="text-4xl font-serif font-bold text-white mb-2 tracking-tighter">Pinnwand</h2>
+                <p className="text-white/30 font-medium text-lg tracking-tight">Nachrichten & Fragen</p>
+              </div>
+              <MessageSquare className="w-8 h-8 text-white/10" />
+            </div>
+
+            <div className="space-y-6 mb-10">
+              {messages.length === 0 ? (
+                <div className="text-center py-10 px-4 bg-white/[0.02] rounded-3xl border border-white/5 border-dashed">
+                   <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Noch keine Nachrichten.</p>
+                </div>
+              ) : (
+                messages.map(msg => (
+                  <div key={msg.id} className={`p-6 rounded-3xl border ${msg.is_admin ? 'bg-white/5 border-white/20' : 'bg-black/40 border-white/5'}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className={`font-serif font-bold text-lg tracking-tight ${msg.is_admin ? 'text-white' : 'text-white/60'}`}>
+                          {msg.is_admin ? (aktion?.title || 'Event Team') : msg.person_name}
+                        </span>
+                        {msg.is_admin ? <span className="bg-white text-black px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest">Orga</span> : null}
+                        <span className="text-white/20 text-[10px] font-bold uppercase tracking-widest">{format(parseISO(msg.created_at), 'dd.MM HH:mm')}</span>
+                      </div>
+                      {msg.person_id === invitee.person_id && (
+                        <button onClick={() => handleDeleteMessage(msg.id)} className="text-white/10 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-white/80 font-medium leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {invitee.has_profile ? (
+              <form onSubmit={handlePostMessage} className="relative">
+                <textarea
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  placeholder="Deine Nachricht an alle..."
+                  className="w-full bg-black/60 border border-white/10 rounded-3xl p-6 pr-16 text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-colors resize-none h-32"
+                />
+                <button 
+                  type="submit" 
+                  disabled={!newMessage.trim()}
+                  className="absolute bottom-6 right-6 w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center disabled:opacity-50 disabled:bg-white/5 disabled:text-white/20 transition-all hover:scale-105 active:scale-95"
+                >
+                  <Send className="w-5 h-5 -ml-0.5" />
+                </button>
+              </form>
+            ) : (
+              <div className="bg-black/40 border border-white/5 rounded-3xl p-6 text-center">
+                <p className="text-white/40 text-sm font-medium">Du musst dir unten ein Profil erstellen, um auf die Pinnwand schreiben zu können.</p>
+              </div>
+            )}
+          </div>
 
           {/* Participants List */}
           {data?.participants && data.participants.length > 0 && (

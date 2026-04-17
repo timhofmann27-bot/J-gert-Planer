@@ -550,7 +550,7 @@ adminRouter.get('/registration-requests', (req, res) => {
 });
 
 // Checklist API
-apiRouter.get('/events/:id/checklist', requirePersonAuth, (req: any, res) => {
+adminRouter.get('/events/:id/checklist', (req: any, res) => {
   const items = db.prepare(`
     SELECT c.*, p.name as claimer_name 
     FROM checklists c 
@@ -561,32 +561,20 @@ apiRouter.get('/events/:id/checklist', requirePersonAuth, (req: any, res) => {
   res.json(items);
 });
 
-apiRouter.post('/events/:id/checklist', requireAuth, (req, res) => {
+adminRouter.post('/events/:id/checklist', (req, res) => {
   const { item_name, notes } = req.body;
   if (!item_name) return res.status(400).json({ error: 'Name ist erforderlich' });
   const info = db.prepare('INSERT INTO checklists (event_id, item_name, notes) VALUES (?, ?, ?)').run(req.params.id, item_name, notes || null);
   res.json({ id: info.lastInsertRowid });
 });
 
-apiRouter.put('/events/:id/checklist/:itemId/claim', requirePersonAuth, (req: any, res) => {
-  db.prepare('UPDATE checklists SET claimer_person_id = ? WHERE id = ? AND event_id = ?')
-    .run(req.person.id, req.params.itemId, req.params.id);
-  res.json({ success: true });
-});
-
-apiRouter.put('/events/:id/checklist/:itemId/unclaim', requirePersonAuth, (req: any, res) => {
-  db.prepare('UPDATE checklists SET claimer_person_id = NULL WHERE id = ? AND event_id = ? AND claimer_person_id = ?')
-    .run(req.params.itemId, req.params.id, req.person.id);
-  res.json({ success: true });
-});
-
-apiRouter.delete('/events/:id/checklist/:itemId', requireAuth, (req, res) => {
+adminRouter.delete('/events/:id/checklist/:itemId', (req, res) => {
   db.prepare('DELETE FROM checklists WHERE id = ? AND event_id = ?').run(req.params.itemId, req.params.id);
   res.json({ success: true });
 });
 
 // Polls API
-apiRouter.get('/events/:id/polls', requirePersonAuth, (req: any, res) => {
+adminRouter.get('/events/:id/polls', (req: any, res) => {
   const polls = db.prepare('SELECT * FROM polls WHERE event_id = ?').all(req.params.id) as any[];
   const result = polls.map(poll => {
     const options = db.prepare('SELECT * FROM poll_options WHERE poll_id = ?').all(poll.id) as any[];
@@ -599,7 +587,7 @@ apiRouter.get('/events/:id/polls', requirePersonAuth, (req: any, res) => {
   res.json(result);
 });
 
-apiRouter.post('/events/:id/polls', requireAuth, (req, res) => {
+adminRouter.post('/events/:id/polls', (req, res) => {
   const { question, options } = req.body;
   if (!question || !options || !Array.isArray(options)) return res.status(400).json({ error: 'Frage und Optionen sind erforderlich' });
   
@@ -614,26 +602,32 @@ apiRouter.post('/events/:id/polls', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-apiRouter.post('/events/:id/polls/:pollId/vote', requirePersonAuth, (req: any, res) => {
-  const { option_id } = req.body;
-  const pollId = req.params.pollId;
-  const personId = req.person.id;
-
-  db.transaction(() => {
-    // Remove previous votes by this person for this poll
-    db.prepare(`
-      DELETE FROM poll_responses 
-      WHERE person_id = ? AND option_id IN (SELECT id FROM poll_options WHERE poll_id = ?)
-    `).run(personId, pollId);
-    
-    // Add new vote
-    db.prepare('INSERT INTO poll_responses (option_id, person_id) VALUES (?, ?)').run(option_id, personId);
-  })();
+adminRouter.delete('/events/:id/polls/:pollId', (req, res) => {
+  db.prepare('DELETE FROM polls WHERE id = ? AND event_id = ?').run(req.params.pollId, req.params.id);
   res.json({ success: true });
 });
 
-apiRouter.delete('/events/:id/polls/:pollId', requireAuth, (req, res) => {
-  db.prepare('DELETE FROM polls WHERE id = ? AND event_id = ?').run(req.params.pollId, req.params.id);
+// Messages API (Admin)
+adminRouter.get('/events/:id/messages', (req, res) => {
+  const msgs = db.prepare(`
+    SELECT m.*, p.name as person_name 
+    FROM event_messages m 
+    LEFT JOIN persons p ON m.person_id = p.id 
+    WHERE m.event_id = ? 
+    ORDER BY m.created_at DESC
+  `).all(req.params.id);
+  res.json(msgs);
+});
+
+adminRouter.post('/events/:id/messages', (req, res) => {
+  const { message } = req.body;
+  if (!message || message.trim() === '') return res.status(400).json({ error: 'Nachricht fehlt' });
+  const info = db.prepare('INSERT INTO event_messages (event_id, is_admin, message) VALUES (?, 1, ?)').run(req.params.id, message.trim());
+  res.json({ id: info.lastInsertRowid });
+});
+
+adminRouter.delete('/events/:id/messages/:msgId', (req, res) => {
+  db.prepare('DELETE FROM event_messages WHERE id = ? AND event_id = ?').run(req.params.msgId, req.params.id);
   res.json({ success: true });
 });
 
@@ -971,13 +965,43 @@ publicRouter.get('/invite/:token', (req, res) => {
     return { ...poll, options: optionsWithVotes };
   });
 
+  // Get messages
+  const messages = db.prepare(`
+    SELECT m.*, p.name as person_name 
+    FROM event_messages m 
+    LEFT JOIN persons p ON m.person_id = p.id 
+    WHERE m.event_id = ? 
+    ORDER BY m.created_at DESC
+  `).all(event.id);
+
   res.json({ 
     invitee: { ...invitee, has_profile: !!invitee.has_profile }, 
     aktion: event,
     participants,
     checklist,
-    polls
+    polls,
+    messages
   });
+});
+
+publicRouter.post('/invite/:token/messages', (req, res) => {
+  const { message } = req.body;
+  if (!message || message.trim() === '') return res.status(400).json({ error: 'Nachricht fehlt' });
+  const invitee = db.prepare('SELECT event_id, person_id FROM invitees WHERE token = ?').get(req.params.token) as any;
+  if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
+  
+  const info = db.prepare('INSERT INTO event_messages (event_id, person_id, message) VALUES (?, ?, ?)').run(invitee.event_id, invitee.person_id, message.trim());
+  res.json({ id: info.lastInsertRowid });
+});
+
+publicRouter.delete('/invite/:token/messages/:msgId', (req, res) => {
+  const invitee = db.prepare('SELECT event_id, person_id FROM invitees WHERE token = ?').get(req.params.token) as any;
+  if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
+
+  // Security: Only delete if person_id matches!
+  const result = db.prepare('DELETE FROM event_messages WHERE id = ? AND event_id = ? AND person_id = ?').run(req.params.msgId, invitee.event_id, invitee.person_id);
+  if (result.changes === 0) return res.status(403).json({ error: 'Keine Berechtigung' });
+  res.json({ success: true });
 });
 
 publicRouter.put('/invite/:token/checklist/:itemId/claim', (req, res) => {

@@ -35,6 +35,8 @@ export default function EventDetails() {
   const [formData, setFormData] = useState({ title: '', date: '', location: '', meeting_point: '', description: '', response_deadline: '' });
   const [checklist, setChecklist] = useState<any[]>([]);
   const [polls, setPolls] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
 
   useEffect(() => {
     fetchAktion();
@@ -43,7 +45,17 @@ export default function EventDetails() {
     fetchInvitationSteps();
     fetchChecklist();
     fetchPolls();
+    fetchMessages();
   }, [id]);
+
+  const fetchMessages = async () => {
+    try {
+      const res = await fetch(`/api/admin/events/${id}/messages`);
+      if (res.ok) setMessages(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden der Nachrichten');
+    }
+  };
 
   const fetchChecklist = async () => {
     try {
@@ -270,6 +282,41 @@ export default function EventDetails() {
       if (!res.ok) throw new Error('Fehler beim Löschen');
       toast.success('Umfrage gelöscht');
       fetchPolls();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handlePostMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    try {
+      const res = await fetch(`/api/admin/events/${id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: newMessage })
+      });
+      if (res.ok) {
+        setNewMessage('');
+        fetchMessages();
+      } else {
+        throw new Error('Fehler beim Senden');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: number) => {
+    if (!window.confirm('Nachricht wirklich löschen?')) return;
+    try {
+      const res = await fetch(`/api/admin/events/${id}/messages/${msgId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Nachricht gelöscht');
+        fetchMessages();
+      } else {
+        throw new Error('Fehler beim Löschen');
+      }
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -741,6 +788,55 @@ export default function EventDetails() {
                 </div>
               )}
             </div>
+          </div>
+          {/* Message Board */}
+          <div className="bg-surface-muted rounded-[3rem] p-8 border border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="flex justify-between items-center mb-10 relative z-10">
+              <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Pinnwand</h3>
+              <MessageSquare className="w-5 h-5 text-white/20" />
+            </div>
+
+            <div className="space-y-4 mb-8">
+              {messages.length === 0 ? (
+                <div className="text-center py-10 px-4 bg-white/[0.02] rounded-2xl border border-white/5 border-dashed">
+                  <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Noch keine Nachrichten.</p>
+                </div>
+              ) : (
+                messages.map(msg => (
+                  <div key={msg.id} className={`p-4 rounded-2xl border ${msg.is_admin ? 'bg-white/5 border-white/20' : 'bg-black/40 border-white/5'}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-bold tracking-tight ${msg.is_admin ? 'text-white' : 'text-white/60'}`}>
+                          {msg.is_admin ? (aktion?.title || 'Event Team') : msg.person_name}
+                        </span>
+                        {msg.is_admin && <span className="bg-white text-black px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">Orga</span>}
+                        <span className="text-white/20 text-[9px] font-bold uppercase tracking-widest">{format(parseISO(msg.created_at), 'dd.MM HH:mm')}</span>
+                      </div>
+                      <button onClick={() => handleDeleteMessage(msg.id)} className="text-white/10 hover:text-red-400 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={handlePostMessage} className="relative z-10">
+              <textarea
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+                placeholder="Als Orga an die Pinnwand schreiben..."
+                className="w-full bg-black/60 border border-white/10 rounded-2xl p-4 pr-14 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/30 transition-colors resize-none h-24"
+              />
+              <button 
+                type="submit" 
+                disabled={!newMessage.trim()}
+                className="absolute bottom-4 right-4 w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center disabled:opacity-50 disabled:bg-white/5 disabled:text-white/20 transition-all hover:scale-105 active:scale-95"
+              >
+                <Send className="w-4 h-4 -ml-0.5" />
+              </button>
+            </form>
           </div>
         </div>
       </div>

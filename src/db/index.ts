@@ -102,6 +102,17 @@ db.exec(`
     FOREIGN KEY (claimer_person_id) REFERENCES persons(id) ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS event_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    person_id INTEGER,
+    is_admin INTEGER DEFAULT 0,
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS polls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL,
