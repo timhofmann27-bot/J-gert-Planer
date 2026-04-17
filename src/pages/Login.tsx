@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import { Calendar, Lock, User, Shield } from 'lucide-react';
 
 export default function Login() {
-  const [loginType, setLoginType] = useState<'person' | 'admin'>('person');
-  const [username, setUsername] = useState('');
+  const [searchParams] = useSearchParams();
+  const [loginType, setLoginType] = useState<'person' | 'admin'>(searchParams.get('type') === 'admin' ? 'admin' : 'person');
+  const [username, setUsername] = useState(searchParams.get('username') || '');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const userParam = searchParams.get('username');
+    if (userParam) setUsername(userParam);
+    const typeParam = searchParams.get('type');
+    if (typeParam === 'admin') setLoginType('admin');
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -74,12 +74,13 @@ function Countdown({ deadline }: { deadline: string }) {
 }
 
 export default function PublicInvite() {
-  const { token } = useParams();
+  const [token] = useState(useParams().token);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showTransit, setShowTransit] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   const [status, setStatus] = useState('');
   const [comment, setComment] = useState('');
@@ -89,18 +90,24 @@ export default function PublicInvite() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
 
-  // Profile setup state
+  // Profile setup & Login state
   const [setupUsername, setSetupUsername] = useState('');
   const [setupPassword, setSetupPassword] = useState('');
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [loginPassword, setLoginPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     fetch('/api/public/check')
       .then(res => res.json())
-      .then(user => {
-        setIsAdmin(user.isAdmin);
+      .then(data => {
+        setIsAdmin(data.isAdmin);
+        setCurrentUser(data.user);
       })
-      .catch(() => setIsAdmin(false));
+      .catch(() => {
+        setIsAdmin(false);
+        setCurrentUser(null);
+      });
 
     fetch(`/api/public/invite/${token}`)
       .then(res => {
@@ -261,6 +268,38 @@ export default function PublicInvite() {
       toast.error(e.message);
     } finally {
       setIsSettingUp(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    try {
+      // If the invitee is linked to an admin account, use the admin auth endpoint
+      const endpoint = invitee.is_admin_account ? '/api/auth/login' : '/api/public/login';
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: invitee.username || invitee.suggested_username || invitee.name_snapshot, password: loginPassword })
+      });
+
+      if (res.ok) {
+        toast.success(invitee.is_admin_account ? 'Einsatzleitung verifiziert' : 'Willkommen zurück!');
+        const checkRes = await fetch('/api/public/check');
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          setCurrentUser(checkData.user);
+          setIsAdmin(checkData.isAdmin);
+        }
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Login fehlgeschlagen');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -924,8 +963,8 @@ export default function PublicInvite() {
             </motion.div>
           )}
 
-          {/* Profile Setup */}
-          {!invitee.has_profile && (
+          {/* Profile Setup / Login */}
+          {!invitee.has_profile ? (
             <motion.div 
               initial={{ opacity: 0, scale: 0.98 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -938,7 +977,7 @@ export default function PublicInvite() {
                    <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
                    <span className="micro-label uppercase tracking-[0.3em]">Identitäts-Protokoll</span>
                 </div>
-                <h2 className="text-5xl sm:text-7xl font-serif font-black text-white mb-8 tracking-tighter leading-none">Verbinden</h2>
+                <h2 className="text-5xl sm:text-7xl font-serif font-black text-white mb-8 tracking-tighter leading-none">Profil <span className="text-white/30 italic">Wählen</span></h2>
                 <p className="text-white/30 mb-16 font-medium leading-[1.3] text-xl tracking-tight max-w-sm italic">
                   Erstelle ein Profil, um deine Signale zu festigen und operative Updates zu erhalten.
                 </p>
@@ -960,7 +999,7 @@ export default function PublicInvite() {
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <span className="micro-label !text-white/10 pl-1">Zugang Schlüssel</span>
+                      <span className="micro-label !text-white/10 pl-1">Passwort</span>
                       <div className="relative group">
                         <Lock className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-white/10 group-focus-within:text-white transition-all" />
                         <input 
@@ -987,9 +1026,7 @@ export default function PublicInvite() {
                 </form>
               </div>
             </motion.div>
-          )}
-
-          {invitee.has_profile && (
+          ) : currentUser?.id === invitee.person_id ? (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -1001,7 +1038,7 @@ export default function PublicInvite() {
                 </div>
                 <div className="text-left space-y-2">
                   <div className="font-serif text-4xl font-black text-white tracking-tighter leading-none">Identität Bestätigt</div>
-                  <div className="text-white/20 font-medium text-lg leading-tight tracking-tight italic">Einsatzprotokoll läuft.</div>
+                  <div className="text-white/20 font-medium text-lg leading-tight tracking-tight italic">Einsatzprotokoll {currentUser.username} läuft.</div>
                 </div>
               </div>
               <Link 
@@ -1010,6 +1047,58 @@ export default function PublicInvite() {
               >
                 Zum Dashboard <ArrowRight className="w-5 h-5" />
               </Link>
+            </motion.div>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="premium-card rounded-4xl p-10 sm:p-20 relative overflow-hidden shadow-none border-white/[0.08]"
+            >
+              <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white/[0.03] to-transparent pointer-events-none" />
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                   <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]" />
+                   <span className="micro-label !text-amber-400/60 uppercase tracking-[0.3em]">Login erforderlich</span>
+                </div>
+                <h2 className="text-5xl sm:text-7xl font-serif font-black text-white mb-8 tracking-tighter leading-none">
+                  {invitee.is_admin_account ? 'Einsatzleitung' : 'Rückruf'} <span className="text-white/30 italic">{invitee.is_admin_account ? 'Bestätigen' : 'Notwendig'}</span>
+                </h2>
+                <p className="text-white/30 mb-16 font-medium leading-[1.3] text-xl tracking-tight max-w-sm italic">
+                  {invitee.is_admin_account 
+                    ? `Melde dich mit deinem Administrator-Konto (@${invitee.username || invitee.suggested_username}) an, um Zugriff zu erhalten.` 
+                    : `Du hast bereits ein Profil für ${invitee.username || 'deinen Account'} erstellt. Melde dich an, um fortzufahren.`}
+                </p>
+                
+                <form onSubmit={handleLogin} className="space-y-10">
+                  <div className="space-y-4">
+                    <span className="micro-label !text-white/10 pl-1">Passwort</span>
+                    <div className="relative group">
+                      <Lock className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-white/10 group-focus-within:text-white transition-all" />
+                      <input 
+                        type="password" 
+                        required 
+                        value={loginPassword}
+                        onChange={e => setLoginPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-black/40 border border-white/5 rounded-3xl p-8 pl-16 text-white placeholder:text-white/10 focus:outline-none focus:border-white/20 transition-all text-lg font-serif italic"
+                      />
+                    </div>
+                  </div>
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full bg-white text-black font-black py-8 rounded-[2rem] hover:bg-white/90 transition-all text-[11px] uppercase tracking-[0.4em] disabled:opacity-50 shadow-[0_24px_48px_rgba(255,255,255,0.1)] active:scale-95"
+                  >
+                    {isLoggingIn ? 'Verifiziere...' : 'Einloggen'}
+                  </motion.button>
+                  <div className="text-center">
+                    <Link to="/login" className="text-[9px] font-black uppercase tracking-[0.2em] text-white/10 hover:text-white transition-colors">Anderer Account?</Link>
+                  </div>
+                </form>
+              </div>
             </motion.div>
           )}
         </div>

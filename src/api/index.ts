@@ -827,10 +827,10 @@ publicRouter.post('/register', (req, res) => {
 
     const hash = bcrypt.hashSync(password, 10);
     
-    db.transaction(() => {
+    const personId = db.transaction(() => {
       // Create person
       const info = db.prepare('INSERT INTO persons (name, username, email, password_hash) VALUES (?, ?, ?, ?)').run(request.name, username, request.email, hash);
-      const personId = info.lastInsertRowid;
+      const newId = info.lastInsertRowid;
       
       // Mark request as used (or delete it)
       db.prepare('DELETE FROM registration_requests WHERE id = ?').run(request.id);
@@ -840,7 +840,16 @@ publicRouter.post('/register', (req, res) => {
         INSERT INTO notifications (user_type, title, message, link)
         VALUES ('admin', 'Neues Mitglied registriert', ?, '/persons')
       `).run(`${request.name} (@${username}) hat sich erfolgreich registriert.`);
+
+      return newId;
     })();
+
+    const token = jwt.sign({ id: personId, name: request.name, type: 'person' }, JWT_SECRET, { expiresIn: '30d' });
+    res.cookie('person_token', token, { 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: isProd ? 'lax' : 'none' 
+    });
 
     res.json({ success: true });
   } catch (e: any) {
@@ -919,7 +928,8 @@ publicRouter.get('/dashboard', requirePersonAuth, (req: any, res) => {
 
 publicRouter.get('/invite/:token', (req, res) => {
   const invitee = db.prepare(`
-    SELECT i.*, p.password_hash as has_profile, p.username as suggested_username
+    SELECT i.*, p.password_hash as has_profile, p.username as suggested_username,
+      (SELECT 1 FROM admin_users a WHERE a.person_id = i.person_id) as is_admin_account
     FROM invitees i 
     JOIN persons p ON i.person_id = p.id
     WHERE i.token = ?
@@ -976,7 +986,7 @@ publicRouter.get('/invite/:token', (req, res) => {
   `).all(event.id);
 
   res.json({ 
-    invitee: { ...invitee, has_profile: !!invitee.has_profile }, 
+    invitee: { ...invitee, has_profile: !!invitee.has_profile || !!invitee.is_admin_account, is_admin_account: !!invitee.is_admin_account }, 
     aktion: event,
     participants,
     checklist,

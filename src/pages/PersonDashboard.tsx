@@ -68,6 +68,7 @@ export default function PersonDashboard() {
   const [loading, setLoading] = useState(true);
   const [transitAktion, setTransitAktion] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPast, setShowPast] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -134,9 +135,9 @@ export default function PersonDashboard() {
   const responded = upcoming.filter(i => i.status !== 'pending');
 
   return (
-    <div className="min-h-screen bg-black pb-32">
-      <header className="bg-black/60 sticky top-0 z-50 backdrop-blur-3xl border-b border-white/5">
-        <div className="max-w-5xl mx-auto px-6 h-24 flex items-center justify-between">
+    <div className="min-h-screen bg-surface text-white selection:bg-white/20">
+      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-2xl border-b border-white/5 pt-safe">
+        <div className="max-w-[1920px] mx-auto px-6 sm:px-12 h-20 flex items-center justify-between">
           <div className="flex items-center gap-5">
             {isAdmin ? (
               <Link 
@@ -260,7 +261,7 @@ export default function PersonDashboard() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-16 space-y-24">
+      <main className="max-w-[1920px] mx-auto px-6 sm:px-12 py-12 pb-32 lg:pb-12 space-y-32">
         {/* Offene Einladungen */}
         {pending.length > 0 && (
           <section>
@@ -273,7 +274,7 @@ export default function PersonDashboard() {
                 </div>
               </div>
             </div>
-            <div className="grid gap-8">
+            <div className="grid gap-8 grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
               {pending.map((inv, i) => (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.98 }} 
@@ -335,7 +336,7 @@ export default function PersonDashboard() {
             <div className="h-px w-24 bg-white/20" />
           </div>
           {responded.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
               {responded.map((inv, i) => (
                 <motion.div 
                   initial={{ opacity: 0, y: 30 }} 
@@ -409,33 +410,49 @@ export default function PersonDashboard() {
 
         {/* Vergangene Aktionen */}
         {past.length > 0 && (
-          <section className="opacity-40 hover:opacity-100 transition-opacity duration-1000">
+          <section className="opacity-90">
             <div className="flex items-center gap-6 mb-12">
-              <h2 className="text-3xl font-serif font-bold text-white tracking-tighter leading-none">Vergangenes</h2>
+              <button 
+                onClick={() => setShowPast(!showPast)}
+                className="text-[10px] font-black text-white/20 hover:text-white uppercase tracking-[0.4em] flex items-center gap-6 transition-colors group"
+              >
+                Chronik ({past.length})
+                <ChevronRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${showPast ? 'rotate-90' : ''}`} />
+              </button>
               <div className="h-px flex-1 bg-white/5" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {past.map((inv, i) => (
+            
+            <AnimatePresence>
+              {showPast && (
                 <motion.div 
-                  initial={{ opacity: 0, y: 10 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }} 
-                  key={inv.id}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"
                 >
-                  <Link to={`/invite/${inv.token}`} className="bg-surface-muted p-8 rounded-[2rem] border border-white/5 flex flex-col gap-6 hover:bg-surface-elevated transition-all group">
-                    <div className="flex items-center justify-between">
-                      <div className="text-[10px] font-black text-white/10 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-xl border border-white/5">
-                        {format(parseISO(inv.date), 'dd.MM.yy')}
-                      </div>
-                      <div className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${inv.status === 'yes' ? 'bg-emerald-500/10 text-emerald-400/40 border-emerald-500/10' : 'bg-white/5 text-white/20 border-white/5'}`}>
-                        {inv.status === 'yes' ? 'Erlebt' : 'Verpasst'}
-                      </div>
-                    </div>
-                    <div className="font-serif text-2xl text-white/40 group-hover:text-white transition-colors tracking-tighter font-bold">{inv.title}</div>
-                  </Link>
+                  {past.map((inv, i) => (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }} 
+                      key={inv.id}
+                    >
+                      <Link to={`/invite/${inv.token}`} className="bg-surface-muted p-8 rounded-[2rem] border border-white/5 flex flex-col gap-6 hover:bg-surface-elevated transition-all group shadow-xl">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-black text-white/10 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                            {format(parseISO(inv.date), 'dd.MM.yy')}
+                          </div>
+                          <div className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${inv.status === 'yes' ? 'bg-emerald-500/10 text-emerald-400/40 border-emerald-500/10' : 'bg-white/5 text-white/20 border-white/5'}`}>
+                            {inv.status === 'yes' ? 'Teilgenommen' : 'Inaktiv'}
+                          </div>
+                        </div>
+                        <div className="font-serif text-2xl text-white/20 group-hover:text-white transition-colors tracking-tighter font-black italic">{inv.title}</div>
+                      </Link>
+                    </motion.div>
+                  ))}
                 </motion.div>
-              ))}
-            </div>
+              )}
+            </AnimatePresence>
           </section>
         )}
       </main>

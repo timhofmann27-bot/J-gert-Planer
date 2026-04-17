@@ -17,6 +17,8 @@ export default function Dashboard() {
   
   const [stats, setStats] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [showPast, setShowPast] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     fetchAktionen();
@@ -322,37 +324,57 @@ export default function Dashboard() {
               </h2>
               <div className="h-px flex-1 bg-white/5" />
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {upcomingAktionen.map((e, i) => renderAktionCard(e, i))}
             </div>
           </section>
         )}
 
         {pastAktionen.length > 0 && (
-          <section className="opacity-60 hover:opacity-100 transition-opacity duration-500">
+          <section className="opacity-90">
             <div className="flex items-center gap-6 mb-12 px-2 lg:px-0">
-              <h2 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] flex items-center gap-4 shrink-0">
-                Vergangen
-              </h2>
+              <button 
+                onClick={() => setShowPast(!showPast)}
+                className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-[0.4em] flex items-center gap-4 shrink-0 transition-colors"
+              >
+                Vergangen ({pastAktionen.length})
+                <ChevronRight className={`w-3 h-3 transition-transform ${showPast ? 'rotate-90' : ''}`} />
+              </button>
               <div className="h-px flex-1 bg-white/5" />
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {pastAktionen.map((e, i) => renderAktionCard(e, i))}
-            </div>
+            {showPast && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+              >
+                {pastAktionen.map((e, i) => renderAktionCard(e, i))}
+              </motion.div>
+            )}
           </section>
         )}
 
         {archivedAktionen.length > 0 && (
-          <section className="opacity-40 hover:opacity-100 transition-opacity duration-500">
+          <section className="opacity-90">
             <div className="flex items-center gap-6 mb-12 px-2 lg:px-0">
-              <h2 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] flex items-center gap-4 shrink-0">
-                Archiviert
-              </h2>
+              <button 
+                onClick={() => setShowArchived(!showArchived)}
+                className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-[0.4em] flex items-center gap-4 shrink-0 transition-colors"
+              >
+                Archiviert ({archivedAktionen.length})
+                <ChevronRight className={`w-3 h-3 transition-transform ${showArchived ? 'rotate-90' : ''}`} />
+              </button>
               <div className="h-px flex-1 bg-white/5" />
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {archivedAktionen.map((e, i) => renderAktionCard(e, i))}
-            </div>
+            {showArchived && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+              >
+                {archivedAktionen.map((e, i) => renderAktionCard(e, i))}
+              </motion.div>
+            )}
           </section>
         )}
       </div>
