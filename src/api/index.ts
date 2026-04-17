@@ -549,6 +549,94 @@ adminRouter.get('/registration-requests', (req, res) => {
   res.json(requests);
 });
 
+// Checklist API
+apiRouter.get('/events/:id/checklist', requirePersonAuth, (req: any, res) => {
+  const items = db.prepare(`
+    SELECT c.*, p.name as claimer_name 
+    FROM checklists c 
+    LEFT JOIN persons p ON c.claimer_person_id = p.id 
+    WHERE c.event_id = ?
+    ORDER BY c.created_at ASC
+  `).all(req.params.id);
+  res.json(items);
+});
+
+apiRouter.post('/events/:id/checklist', requireAuth, (req, res) => {
+  const { item_name, notes } = req.body;
+  if (!item_name) return res.status(400).json({ error: 'Name ist erforderlich' });
+  const info = db.prepare('INSERT INTO checklists (event_id, item_name, notes) VALUES (?, ?, ?)').run(req.params.id, item_name, notes || null);
+  res.json({ id: info.lastInsertRowid });
+});
+
+apiRouter.put('/events/:id/checklist/:itemId/claim', requirePersonAuth, (req: any, res) => {
+  db.prepare('UPDATE checklists SET claimer_person_id = ? WHERE id = ? AND event_id = ?')
+    .run(req.person.id, req.params.itemId, req.params.id);
+  res.json({ success: true });
+});
+
+apiRouter.put('/events/:id/checklist/:itemId/unclaim', requirePersonAuth, (req: any, res) => {
+  db.prepare('UPDATE checklists SET claimer_person_id = NULL WHERE id = ? AND event_id = ? AND claimer_person_id = ?')
+    .run(req.params.itemId, req.params.id, req.person.id);
+  res.json({ success: true });
+});
+
+apiRouter.delete('/events/:id/checklist/:itemId', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM checklists WHERE id = ? AND event_id = ?').run(req.params.itemId, req.params.id);
+  res.json({ success: true });
+});
+
+// Polls API
+apiRouter.get('/events/:id/polls', requirePersonAuth, (req: any, res) => {
+  const polls = db.prepare('SELECT * FROM polls WHERE event_id = ?').all(req.params.id) as any[];
+  const result = polls.map(poll => {
+    const options = db.prepare('SELECT * FROM poll_options WHERE poll_id = ?').all(poll.id) as any[];
+    const optionsWithVotes = options.map(opt => {
+      const votes = db.prepare('SELECT p.id, p.name FROM poll_responses pr JOIN persons p ON pr.person_id = p.id WHERE pr.option_id = ?').all(opt.id);
+      return { ...opt, votes, vote_count: votes.length };
+    });
+    return { ...poll, options: optionsWithVotes };
+  });
+  res.json(result);
+});
+
+apiRouter.post('/events/:id/polls', requireAuth, (req, res) => {
+  const { question, options } = req.body;
+  if (!question || !options || !Array.isArray(options)) return res.status(400).json({ error: 'Frage und Optionen sind erforderlich' });
+  
+  db.transaction(() => {
+    const pollInfo = db.prepare('INSERT INTO polls (event_id, question) VALUES (?, ?)').run(req.params.id, question);
+    const pollId = pollInfo.lastInsertRowid;
+    const insertOpt = db.prepare('INSERT INTO poll_options (poll_id, option_text) VALUES (?, ?)');
+    for (const opt of options) {
+      insertOpt.run(pollId, opt);
+    }
+  })();
+  res.json({ success: true });
+});
+
+apiRouter.post('/events/:id/polls/:pollId/vote', requirePersonAuth, (req: any, res) => {
+  const { option_id } = req.body;
+  const pollId = req.params.pollId;
+  const personId = req.person.id;
+
+  db.transaction(() => {
+    // Remove previous votes by this person for this poll
+    db.prepare(`
+      DELETE FROM poll_responses 
+      WHERE person_id = ? AND option_id IN (SELECT id FROM poll_options WHERE poll_id = ?)
+    `).run(personId, pollId);
+    
+    // Add new vote
+    db.prepare('INSERT INTO poll_responses (option_id, person_id) VALUES (?, ?)').run(option_id, personId);
+  })();
+  res.json({ success: true });
+});
+
+apiRouter.delete('/events/:id/polls/:pollId', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM polls WHERE id = ? AND event_id = ?').run(req.params.pollId, req.params.id);
+  res.json({ success: true });
+});
+
 adminRouter.put('/registration-requests/:id/approve', (req, res) => {
   try {
     const code = crypto.randomBytes(8).toString('hex').toUpperCase();
@@ -863,11 +951,69 @@ publicRouter.get('/invite/:token', (req, res) => {
       p.name ASC
   `).all(event.id, invitee.id);
 
+  // Get checklist
+  const checklist = db.prepare(`
+    SELECT c.*, p.name as claimer_name 
+    FROM checklists c 
+    LEFT JOIN persons p ON c.claimer_person_id = p.id 
+    WHERE c.event_id = ?
+    ORDER BY c.created_at ASC
+  `).all(event.id);
+
+  // Get polls
+  const pollsData = db.prepare('SELECT * FROM polls WHERE event_id = ?').all(event.id) as any[];
+  const polls = pollsData.map(poll => {
+    const options = db.prepare('SELECT * FROM poll_options WHERE poll_id = ?').all(poll.id) as any[];
+    const optionsWithVotes = options.map(opt => {
+      const votes = db.prepare('SELECT p.id, p.name FROM poll_responses pr JOIN persons p ON pr.person_id = p.id WHERE pr.option_id = ?').all(opt.id);
+      return { ...opt, votes, vote_count: votes.length };
+    });
+    return { ...poll, options: optionsWithVotes };
+  });
+
   res.json({ 
     invitee: { ...invitee, has_profile: !!invitee.has_profile }, 
     aktion: event,
-    participants
+    participants,
+    checklist,
+    polls
   });
+});
+
+publicRouter.put('/invite/:token/checklist/:itemId/claim', (req, res) => {
+  const invitee = db.prepare('SELECT person_id, event_id FROM invitees WHERE token = ?').get(req.params.token) as any;
+  if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
+  
+  db.prepare('UPDATE checklists SET claimer_person_id = ? WHERE id = ? AND event_id = ?')
+    .run(invitee.person_id, req.params.itemId, invitee.event_id);
+  res.json({ success: true });
+});
+
+publicRouter.put('/invite/:token/checklist/:itemId/unclaim', (req, res) => {
+  const invitee = db.prepare('SELECT person_id, event_id FROM invitees WHERE token = ?').get(req.params.token) as any;
+  if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
+
+  db.prepare('UPDATE checklists SET claimer_person_id = NULL WHERE id = ? AND event_id = ? AND claimer_person_id = ?')
+    .run(req.params.itemId, invitee.event_id, invitee.person_id);
+  res.json({ success: true });
+});
+
+publicRouter.post('/invite/:token/polls/:pollId/vote', (req, res) => {
+  const { option_id } = req.body;
+  const invitee = db.prepare('SELECT person_id FROM invitees WHERE token = ?').get(req.params.token) as any;
+  if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
+  
+  const pollId = req.params.pollId;
+  const personId = invitee.person_id;
+
+  db.transaction(() => {
+    db.prepare(`
+      DELETE FROM poll_responses 
+      WHERE person_id = ? AND option_id IN (SELECT id FROM poll_options WHERE poll_id = ?)
+    `).run(personId, pollId);
+    db.prepare('INSERT INTO poll_responses (option_id, person_id) VALUES (?, ?)').run(option_id, personId);
+  })();
+  res.json({ success: true });
 });
 
 publicRouter.post('/invite/:token/setup-profile', (req, res) => {

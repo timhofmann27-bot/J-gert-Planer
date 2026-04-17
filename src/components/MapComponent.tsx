@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
-import { MapPin, Star } from 'lucide-react';
+import { MapPin, Star, ExternalLink } from 'lucide-react';
 import ReactDOMServer from 'react-dom/server';
 
 // Fix for default marker icons in Leaflet with Vite
@@ -60,9 +60,20 @@ export default function MapComponent({ location }: MapComponentProps) {
       });
   }, [location]);
 
+  const handleOpenMaps = () => {
+    const query = coords ? `${coords[0]},${coords[1]}` : encodeURIComponent(location);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    if (isIOS) {
+      window.open(`http://maps.apple.com/?q=${query}`, '_blank');
+    } else {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="w-full h-80 bg-white/5 rounded-[2rem] flex flex-col items-center justify-center border border-white/5 animate-pulse">
+      <div className="w-full h-80 bg-white/5 rounded-[2rem] flex flex-col items-center justify-center border border-white/5 animate-pulse relative">
         <MapPin className="w-8 h-8 text-white/20 mb-4" />
         <span className="text-white/20 text-xs font-bold uppercase tracking-widest">Karte wird geladen...</span>
       </div>
@@ -71,15 +82,22 @@ export default function MapComponent({ location }: MapComponentProps) {
 
   if (error || !coords) {
     return (
-      <div className="w-full h-80 bg-white/5 rounded-[2rem] flex flex-col items-center justify-center border border-white/10">
+      <div className="w-full h-80 bg-white/5 rounded-[2rem] flex flex-col items-center justify-center border border-white/10 relative">
         <MapPin className="w-8 h-8 text-white/10 mb-4" />
-        <span className="text-white/30 text-xs font-bold uppercase tracking-widest">{error || 'Karte nicht verfügbar'}</span>
+        <span className="text-white/30 text-xs font-bold uppercase tracking-widest mb-6">{error || 'Karte nicht verfügbar'}</span>
+        <button 
+          onClick={handleOpenMaps}
+          className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-white px-6 py-3 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all shadow-xl"
+        >
+          <ExternalLink className="w-4 h-4" />
+          In Google Maps suchen
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-80 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative z-0">
+    <div className="w-full h-80 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative z-0 group">
       <MapContainer 
         center={coords} 
         zoom={13} 
@@ -94,20 +112,39 @@ export default function MapComponent({ location }: MapComponentProps) {
         <ChangeView center={coords} />
         <Marker position={coords} icon={favoriteIcon}>
           <Popup>
-            <div className="font-serif font-bold text-black flex items-center gap-2">
+            <div className="font-serif font-bold text-black dark:text-white flex items-center gap-2">
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              Favorit: {location}
+              {location}
             </div>
           </Popup>
         </Marker>
       </MapContainer>
       
+      <button 
+        onClick={handleOpenMaps}
+        className="absolute bottom-6 right-6 z-[10] bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/20 text-white px-5 py-3 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all shadow-2xl"
+      >
+        <ExternalLink className="w-4 h-4" />
+        Maps
+      </button>
+
       <style>{`
         .leaflet-container {
-          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+          filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%);
         }
         .leaflet-tile {
           filter: brightness(0.9);
+        }
+        .leaflet-control-container .leaflet-control {
+          background: rgba(0,0,0,0.5) !important;
+          border: 1px solid rgba(255,255,255,0.1) !important;
+          border-radius: 12px !important;
+          backdrop-filter: blur(10px) !important;
+          overflow: hidden;
+        }
+        .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+          color: white !important;
+          border-bottom: 1px solid rgba(255,255,255,0.1) !important;
         }
         .leaflet-popup-content-wrapper {
           background: #050505;

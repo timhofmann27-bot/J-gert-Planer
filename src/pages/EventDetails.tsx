@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import MapComponent from '../components/MapComponent';
 import TransitPlanner from '../components/TransitPlanner';
+import { generateVCalendar } from '../lib/calendar';
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -24,17 +25,43 @@ export default function EventDetails() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBulkInviteModal, setShowBulkInviteModal] = useState(false);
   const [showStepModal, setShowStepModal] = useState(false);
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
+  const [showPollModal, setShowPollModal] = useState(false);
   const [editingStep, setEditingStep] = useState<any>(null);
   const [stepFormData, setStepFormData] = useState({ name: '', message: '', scheduled_at: '' });
+  const [checklistFormData, setChecklistFormData] = useState({ item_name: '', notes: '' });
+  const [pollFormData, setPollFormData] = useState({ question: '', options: ['', ''] });
   const [selectedPersonIds, setSelectedPersonIds] = useState<number[]>([]);
   const [formData, setFormData] = useState({ title: '', date: '', location: '', meeting_point: '', description: '', response_deadline: '' });
+  const [checklist, setChecklist] = useState<any[]>([]);
+  const [polls, setPolls] = useState<any[]>([]);
 
   useEffect(() => {
     fetchAktion();
     fetchInvites();
     fetchPersons();
     fetchInvitationSteps();
+    fetchChecklist();
+    fetchPolls();
   }, [id]);
+
+  const fetchChecklist = async () => {
+    try {
+      const res = await fetch(`/api/admin/events/${id}/checklist`);
+      if (res.ok) setChecklist(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden der Mitbringliste');
+    }
+  };
+
+  const fetchPolls = async () => {
+    try {
+      const res = await fetch(`/api/admin/events/${id}/polls`);
+      if (res.ok) setPolls(await res.json());
+    } catch (e) {
+      toast.error('Fehler beim Laden der Umfragen');
+    }
+  };
 
   const fetchAktion = async () => {
     try {
@@ -185,6 +212,69 @@ export default function EventDetails() {
     }
   };
 
+  const handleSaveChecklistItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`/api/admin/events/${id}/checklist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(checklistFormData)
+      });
+      if (!res.ok) throw new Error('Fehler beim Speichern');
+      toast.success('Gegenstand hinzugefügt');
+      setShowChecklistModal(false);
+      setChecklistFormData({ item_name: '', notes: '' });
+      fetchChecklist();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleDeleteChecklistItem = async (itemId: number) => {
+    try {
+      const res = await fetch(`/api/admin/events/${id}/checklist/${itemId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Fehler beim Löschen');
+      toast.success('Gelöscht');
+      fetchChecklist();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleCreatePoll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const filteredOptions = pollFormData.options.filter(o => o.trim() !== '');
+    if (filteredOptions.length < 2) {
+      toast.error('Bitte mindestens 2 Optionen angeben');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/events/${id}/polls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...pollFormData, options: filteredOptions })
+      });
+      if (!res.ok) throw new Error('Fehler beim Erstellen');
+      toast.success('Umfrage erstellt');
+      setShowPollModal(false);
+      setPollFormData({ question: '', options: ['', ''] });
+      fetchPolls();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleDeletePoll = async (pollId: number) => {
+    try {
+      const res = await fetch(`/api/admin/events/${id}/polls/${pollId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Fehler beim Löschen');
+      toast.success('Umfrage gelöscht');
+      fetchPolls();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const openEdit = () => {
     setFormData({ 
       title: aktion.title, 
@@ -301,12 +391,18 @@ export default function EventDetails() {
             </div>
           )}
           
-          <div className="mt-8 flex justify-center sm:justify-start">
+          <div className="mt-8 flex flex-wrap justify-center sm:justify-start gap-4">
             <button 
               onClick={() => setShowTransit(true)}
               className="bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 px-8 py-5 rounded-[1.8rem] flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] text-white transition-all active:scale-95 shadow-2xl"
             >
               <Train className="w-5 h-5" /> Route planen
+            </button>
+            <button 
+              onClick={() => generateVCalendar(aktion, `${window.location.origin}/invite/${aktion.token}`)}
+              className="bg-white text-black px-8 py-5 rounded-[1.8rem] flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] transition-all active:scale-95 shadow-2xl shadow-white/10"
+            >
+              <Calendar className="w-5 h-5" /> Kalender
             </button>
           </div>
         </div>
@@ -558,6 +654,94 @@ export default function EventDetails() {
               )}
             </div>
           </div>
+
+          {/* Checklist Card */}
+          <div className="bg-surface-muted rounded-[3rem] p-8 border border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="flex justify-between items-center mb-10 relative z-10">
+              <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Mitbringliste</h3>
+              <button 
+                onClick={() => { setChecklistFormData({ item_name: '', notes: '' }); setShowChecklistModal(true); }} 
+                className="w-10 h-10 bg-white shadow-2xl text-black rounded-2xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4 relative z-10">
+              {checklist.map(item => (
+                <div key={item.id} className="bg-white/[0.03] p-5 rounded-2xl border border-white/5 group hover:bg-white/[0.05] transition-colors flex items-center justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className={`text-sm font-bold tracking-tight ${item.claimer_person_id ? 'text-white/40' : 'text-white'}`}>{item.item_name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${item.claimer_person_id ? 'text-emerald-400' : 'text-white/10'}`}>
+                        {item.claimer_name ? `Besorgt von: ${item.claimer_name}` : 'Offen'}
+                      </span>
+                    </div>
+                    {item.notes && <span className="text-[10px] text-white/20">{item.notes}</span>}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleDeleteChecklistItem(item.id)} className="w-10 h-10 flex items-center justify-center text-white/10 hover:text-red-400 transition-colors active:scale-90">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {checklist.length === 0 && (
+                <div className="text-center py-10 px-4 bg-white/[0.02] rounded-2xl border border-white/5 border-dashed">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-5 h-5 text-white/20" />
+                  </div>
+                  <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Die Mitbringliste ist noch leer.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Polls Card */}
+          <div className="bg-surface-muted rounded-[3rem] p-8 border border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="flex justify-between items-center mb-10 relative z-10">
+              <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Umfragen</h3>
+              <button 
+                onClick={() => { setPollFormData({ question: '', options: ['', ''] }); setShowPollModal(true); }} 
+                className="w-10 h-10 bg-white shadow-2xl text-black rounded-2xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-6 relative z-10">
+              {polls.map(poll => (
+                <div key={poll.id} className="p-6 bg-white/[0.03] rounded-3xl border border-white/5">
+                  <div className="flex justify-between items-start mb-4">
+                    <h4 className="font-serif font-bold text-white text-lg tracking-tight">{poll.question}</h4>
+                    <button onClick={() => handleDeletePoll(poll.id)} className="text-white/10 hover:text-red-400 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {poll.options.map((opt: any) => (
+                      <div key={opt.id} className="relative h-10 bg-white/5 rounded-xl overflow-hidden border border-white/5">
+                        <div 
+                          className="absolute inset-y-0 left-0 bg-white/10 transition-all duration-1000"
+                          style={{ width: `${poll.options.reduce((a: any, b: any) => a + b.vote_count, 0) > 0 ? (opt.vote_count / poll.options.reduce((a: any, b: any) => a + b.vote_count, 0)) * 100 : 0}%` }}
+                        />
+                        <div className="relative h-full flex items-center justify-between px-4 text-[10px] font-bold text-white/60 tracking-widest uppercase">
+                          <span>{opt.option_text}</span>
+                          <span>{opt.vote_count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {polls.length === 0 && (
+                <div className="text-center py-10 px-4 bg-white/[0.02] rounded-2xl border border-white/5 border-dashed">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <HelpCircle className="w-5 h-5 text-white/20" />
+                  </div>
+                  <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Keine Umfragen erstellt.</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -722,6 +906,82 @@ export default function EventDetails() {
         destinationName={aktion?.location}
         eventStartTime={aktion?.date}
       />
+
+      {showChecklistModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-6 z-50 backdrop-blur-2xl">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-surface border-t sm:border border-white/10 rounded-t-[3rem] sm:rounded-[3rem] shadow-2xl max-w-md w-full p-8 sm:p-12 relative overflow-hidden"
+          >
+            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-10 sm:hidden" />
+            <h2 className="text-4xl font-serif font-bold mb-10 text-white tracking-tighter">Neuer <span className="text-white/30">Gegenstand</span></h2>
+            <form onSubmit={handleSaveChecklistItem} className="space-y-10">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] ml-1">Was wird gebraucht?</label>
+                <input required type="text" placeholder="z.B. Grillkohle" value={checklistFormData.item_name} onChange={e => setChecklistFormData({...checklistFormData, item_name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white outline-none focus:ring-2 focus:ring-white/10 transition-all font-serif text-xl" />
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] ml-1">Notizen (optional)</label>
+                <input type="text" placeholder="z.B. Marke egal" value={checklistFormData.notes} onChange={e => setChecklistFormData({...checklistFormData, notes: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white outline-none focus:ring-2 focus:ring-white/10 transition-all" />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button type="button" onClick={() => setShowChecklistModal(false)} className="w-full sm:flex-1 h-16 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Abbrechen</button>
+                <button type="submit" className="w-full sm:flex-1 h-16 bg-white text-black rounded-2xl font-black hover:bg-white/90 transition-all text-xs uppercase tracking-widest shadow-2xl shadow-white/10">Speichern</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {showPollModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-6 z-50 backdrop-blur-2xl">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-surface border-t sm:border border-white/10 rounded-t-[3rem] sm:rounded-[3rem] shadow-2xl max-w-md w-full p-8 sm:p-12 relative overflow-hidden h-[90vh] flex flex-col"
+          >
+            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-10 sm:hidden" />
+            <h2 className="text-4xl font-serif font-bold mb-10 text-white tracking-tighter shrink-0">Neue <span className="text-white/30">Umfrage</span></h2>
+            <form onSubmit={handleCreatePoll} className="space-y-10 flex-1 overflow-y-auto pr-2">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] ml-1">Frage</label>
+                <input required type="text" placeholder="Was wollen wir machen?" value={pollFormData.question} onChange={e => setPollFormData({...pollFormData, question: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white outline-none focus:ring-2 focus:ring-white/10 transition-all font-serif text-xl" />
+              </div>
+              <div className="space-y-6">
+                <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] ml-1">Optionen</label>
+                <div className="space-y-3">
+                  {pollFormData.options.map((opt, i) => (
+                    <input 
+                      key={i} 
+                      type="text" 
+                      placeholder={`Option ${i+1}`}
+                      value={opt}
+                      onChange={(e) => {
+                        const newOpts = [...pollFormData.options];
+                        newOpts[i] = e.target.value;
+                        setPollFormData({...pollFormData, options: newOpts});
+                      }}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:ring-2 focus:ring-white/10 transition-all"
+                    />
+                  ))}
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setPollFormData({...pollFormData, options: [...pollFormData.options, '']})}
+                  className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest flex items-center gap-2"
+                >
+                  <Plus className="w-3 h-3" /> Option hinzufügen
+                </button>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4 pt-10 sticky bottom-0 bg-surface pb-4">
+                <button type="button" onClick={() => setShowPollModal(false)} className="w-full sm:flex-1 h-16 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Abbrechen</button>
+                <button type="submit" className="w-full sm:flex-1 h-16 bg-white text-black rounded-2xl font-black hover:bg-white/90 transition-all text-xs uppercase tracking-widest shadow-2xl shadow-white/10">Erstellen</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User, AlertCircle, Train } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, Users, Lock, Mail, ArrowRight, User, AlertCircle, Train, Repeat } from 'lucide-react';
 import { format, parseISO, differenceInSeconds } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import MapComponent from '../components/MapComponent';
 import TransitPlanner from '../components/TransitPlanner';
+import { generateVCalendar } from '../lib/calendar';
 
 function Countdown({ deadline }: { deadline: string }) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -86,6 +87,8 @@ export default function PublicInvite() {
   const [status, setStatus] = useState('');
   const [comment, setComment] = useState('');
   const [guestsCount, setGuestsCount] = useState(0);
+  const [checklist, setChecklist] = useState<any[]>([]);
+  const [polls, setPolls] = useState<any[]>([]);
 
   // Profile setup state
   const [setupUsername, setSetupUsername] = useState('');
@@ -110,6 +113,8 @@ export default function PublicInvite() {
         setStatus(d.invitee.status === 'pending' ? '' : d.invitee.status);
         setComment(d.invitee.comment || '');
         setGuestsCount(d.invitee.guests_count || 0);
+        setChecklist(d.checklist || []);
+        setPolls(d.polls || []);
         
         // Suggest username if not set
         if (!d.invitee.has_profile) {
@@ -144,6 +149,57 @@ export default function PublicInvite() {
     } catch (e: any) {
       console.error('Submission Error:', e);
       toast.error(e.message || 'Ein Netzwerkfehler ist aufgetreten.');
+    }
+  };
+
+  const fetchUpdatedData = async () => {
+    try {
+      const res = await fetch(`/api/public/invite/${token}`);
+      if (res.ok) {
+        const d = await res.json();
+        setChecklist(d.checklist || []);
+        setPolls(d.polls || []);
+      }
+    } catch (e) {}
+  };
+
+  const handleClaimItem = async (itemId: number) => {
+    try {
+      const res = await fetch(`/api/public/invite/${token}/checklist/${itemId}/claim`, { method: 'PUT' });
+      if (res.ok) {
+        toast.success('Gegenstand übernommen');
+        fetchUpdatedData();
+      }
+    } catch (e) {
+      toast.error('Fehler beim Übernehmen');
+    }
+  };
+
+  const handleUnclaimItem = async (itemId: number) => {
+    try {
+      const res = await fetch(`/api/public/invite/${token}/checklist/${itemId}/unclaim`, { method: 'PUT' });
+      if (res.ok) {
+        toast.success('Gegenstand freigegeben');
+        fetchUpdatedData();
+      }
+    } catch (e) {
+      toast.error('Fehler beim Freigeben');
+    }
+  };
+
+  const handleVote = async (pollId: number, optionId: number) => {
+    try {
+      const res = await fetch(`/api/public/invite/${token}/polls/${pollId}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ option_id: optionId })
+      });
+      if (res.ok) {
+        toast.success('Stimme gespeichert');
+        fetchUpdatedData();
+      }
+    } catch (e) {
+      toast.error('Fehler beim Abstimmen');
     }
   };
 
@@ -347,12 +403,18 @@ export default function PublicInvite() {
                     className="rounded-[2.5rem] overflow-hidden border border-white/5 brightness-75 grayscale hover:grayscale-0 transition-all duration-700 h-64 shadow-2xl relative group"
                   >
                     <MapComponent location={aktion.location} />
-                    <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/60 to-transparent flex justify-end">
+                    <div className="absolute inset-x-0 bottom-0 p-4 sm:p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-wrap justify-end gap-2 sm:gap-3">
                       <button 
-                        onClick={() => setShowTransit(true)}
-                        className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all active:scale-95"
+                        onClick={(e) => { e.stopPropagation(); setShowTransit(true); }}
+                        className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 px-4 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all active:scale-95"
                       >
-                        <Train className="w-4 h-4" /> Route planen
+                        <Train className="w-3 h-3 sm:w-4 sm:h-4" /> Route
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); generateVCalendar(aktion, window.location.href); }}
+                        className="bg-white text-black px-4 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl"
+                      >
+                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4" /> Kalender
                       </button>
                     </div>
                   </motion.div>
@@ -479,6 +541,156 @@ export default function PublicInvite() {
               )}
             </form>
           </motion.div>
+
+          {/* Checklist Section */}
+          <AnimatePresence>
+            {checklist.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="bg-surface-muted rounded-[3.5rem] border border-white/5 p-10 sm:p-20 relative overflow-hidden"
+              >
+                <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+                <div className="relative z-10">
+                  <div className="flex justify-between items-center mb-10">
+                    <div>
+                      <h2 className="text-4xl font-serif font-bold text-white mb-2 tracking-tighter">Mitbringliste</h2>
+                      <p className="text-white/30 font-medium text-lg tracking-tight">Wer bringt was mit?</p>
+                    </div>
+                    <button 
+                      onClick={fetchUpdatedData}
+                      className="w-10 h-10 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 hover:text-white transition-all active:rotate-180 duration-500"
+                      title="Aktualisieren"
+                    >
+                      <Repeat className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid gap-4">
+                    {checklist.map(item => {
+                      const isClaimedByMe = item.claimer_person_id === invitee.person_id;
+                      const isClaimedByOther = item.claimer_person_id && !isClaimedByMe;
+                      
+                      return (
+                        <motion.div 
+                          key={item.id} 
+                          layout
+                          className={`flex items-center justify-between p-6 sm:p-8 rounded-[2.2rem] border transition-all duration-500 ${
+                            isClaimedByMe ? 'bg-emerald-500/10 border-emerald-500/30' : 
+                            isClaimedByOther ? 'bg-white/[0.02] border-white/5 opacity-60' : 
+                            'bg-white/5 border-white/10'
+                          }`}
+                        >
+                          <div className="flex flex-col gap-1 pr-4">
+                            <span className={`text-xl font-serif font-bold tracking-tight transition-all ${
+                              item.claimer_person_id ? 'text-white/40' : 'text-white'
+                            }`}>
+                              {item.item_name}
+                            </span>
+                            {item.notes && <span className="text-xs text-white/20 font-medium">{item.notes}</span>}
+                            
+                            {isClaimedByOther && (
+                              <div className="flex items-center gap-2 text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-3">
+                                <User className="w-3 h-3" /> {item.claimer_name}
+                              </div>
+                            )}
+                            {isClaimedByMe && (
+                              <div className="flex items-center gap-2 text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] mt-3">
+                                <CheckCircle className="w-3 h-3" /> Von dir übernommen
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="shrink-0">
+                            {!item.claimer_person_id ? (
+                              <button 
+                                onClick={() => handleClaimItem(item.id)}
+                                className="bg-white text-black px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-90 shadow-xl"
+                              >
+                                Ich!
+                              </button>
+                            ) : isClaimedByMe ? (
+                              <button 
+                                onClick={() => handleUnclaimItem(item.id)}
+                                className="w-12 h-12 bg-emerald-500 text-black rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-90 transition-all hover:bg-rose-500 hover:text-white group"
+                                title="Abgeben"
+                              >
+                                <CheckCircle className="w-6 h-6 group-hover:hidden" />
+                                <XCircle className="w-6 h-6 hidden group-hover:block" />
+                              </button>
+                            ) : (
+                              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
+                                <Lock className="w-5 h-5 text-white/10" />
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Polls Section */}
+          {polls.length > 0 && (
+            <div className="space-y-12">
+              <div className="flex justify-between items-center px-10">
+                <h2 className="text-4xl font-serif font-bold text-white tracking-tighter">Abstimmungen</h2>
+                <button 
+                  onClick={fetchUpdatedData}
+                  className="w-10 h-10 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 hover:text-white transition-all active:rotate-180 duration-500"
+                  title="Aktualisieren"
+                >
+                  <Repeat className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid gap-6">
+                {polls.map(poll => (
+                  <motion.div 
+                    key={poll.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    className="bg-surface-muted rounded-[3rem] border border-white/5 p-10 relative overflow-hidden"
+                  >
+                    <h3 className="text-2xl font-serif font-bold text-white mb-8 tracking-tighter">{poll.question}</h3>
+                    <div className="space-y-4">
+                      {poll.options.map((opt: any) => {
+                        const hasVoted = opt.votes.some((v: any) => v.id === invitee.person_id);
+                        const totalVotes = poll.options.reduce((a: any, b: any) => a + b.vote_count, 0);
+                        const percent = totalVotes > 0 ? (opt.vote_count / totalVotes) * 100 : 0;
+                        
+                        return (
+                          <button 
+                            key={opt.id}
+                            onClick={() => handleVote(poll.id, opt.id)}
+                            className={`w-full relative h-16 rounded-2xl overflow-hidden border transition-all text-left ${hasVoted ? 'border-white/20 bg-white/5' : 'border-white/5 bg-black/40 hover:bg-black/60'}`}
+                          >
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${percent}%` }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                              className="absolute inset-y-0 left-0 bg-white/[0.03]"
+                            />
+                            <div className="relative h-full flex items-center justify-between px-6">
+                              <span className={`text-sm font-bold tracking-widest uppercase transition-colors ${hasVoted ? 'text-white' : 'text-white/40'}`}>{opt.option_text}</span>
+                              <div className="flex items-center gap-4">
+                                {hasVoted && <CheckCircle className="w-4 h-4 text-white" />}
+                                <span className="text-[10px] font-black text-white/20">{opt.vote_count}</span>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Participants List */}
           {data?.participants && data.participants.length > 0 && (

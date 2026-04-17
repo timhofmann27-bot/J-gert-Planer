@@ -90,6 +90,43 @@ db.exec(`
     code TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS checklists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    item_name TEXT NOT NULL,
+    notes TEXT,
+    claimer_person_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    FOREIGN KEY (claimer_person_id) REFERENCES persons(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS polls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    question TEXT NOT NULL,
+    is_closed INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS poll_options (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    poll_id INTEGER NOT NULL,
+    option_text TEXT NOT NULL,
+    FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS poll_responses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    option_id INTEGER NOT NULL,
+    person_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (option_id) REFERENCES poll_options(id) ON DELETE CASCADE,
+    FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
+    UNIQUE(option_id, person_id)
+  );
 `);
 
 // Add person_id to admin_users if it doesn't exist (migration)
