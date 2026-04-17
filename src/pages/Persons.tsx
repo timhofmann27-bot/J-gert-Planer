@@ -13,6 +13,7 @@ export default function Members() {
   const [isInviting, setIsInviting] = useState(false);
   const [editingMember, setEditingMember] = useState<any>(null);
   const [formData, setFormData] = useState({ name: '', username: '', email: '', notes: '' });
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -126,80 +127,148 @@ export default function Members() {
     setShowModal(true);
   };
 
+  const filteredMembers = members.filter(m => 
+    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (m.username && m.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (m.email && m.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <div className="pb-32">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-10 mb-16">
-        <div className="space-y-2">
-          <h1 className="text-5xl sm:text-6xl font-serif font-bold text-white tracking-tighter leading-none">Netzwerk</h1>
-          <p className="text-white/30 font-medium text-lg tracking-tight">Verwalte deine Mitglieder und Kontakte.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-10 mb-12">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Users className="w-4 h-4 text-white/40" />
+            <span className="micro-label">Personal-Verwaltung</span>
+          </div>
+          <h1 className="text-5xl sm:text-7xl font-display font-medium text-white tracking-tighter leading-none">Netzwerk</h1>
+          <p className="text-white/30 font-medium text-xl tracking-tight max-w-xl italic">
+            Zentrale Übersicht der Einsatzkräfte und Kontakte.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+          <div className="relative group flex-1 sm:flex-none">
+            <input 
+              type="text" 
+              placeholder="Suchen..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-64 h-14 bg-white/5 border border-white/5 rounded-2xl px-6 text-white text-sm outline-none focus:border-white/20 transition-all placeholder:text-white/10"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           <button
             onClick={() => setShowBulkModal(true)}
             disabled={members.length === 0}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-surface-muted border border-white/5 text-white/60 px-8 py-5 rounded-[2rem] hover:bg-surface-elevated hover:text-white transition-all text-xs font-black uppercase tracking-widest disabled:opacity-20 active:scale-95 shadow-xl"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-white/5 border border-white/5 text-white/40 px-8 h-14 rounded-2xl hover:bg-white/10 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-20 active:scale-95"
           >
-            <CalendarPlus className="w-4 h-4" />
+            <CalendarPlus className="w-4 h-4 text-white/20" />
             <span>Multi-Invite</span>
           </button>
           <button
             onClick={openNew}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-[2rem] hover:bg-white/90 transition-all text-xs font-black uppercase tracking-widest shadow-2xl shadow-white/10 active:scale-95"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-4 bg-white text-black px-10 h-14 rounded-2xl hover:bg-white/90 transition-all text-[10px] font-black uppercase tracking-widest shadow-2xl active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>Neues Mitglied</span>
+            <span>Neu anlegen</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-surface-muted rounded-[3rem] shadow-2xl border border-white/5 overflow-hidden">
-        <div className="divide-y divide-white/5 px-2">
-          {members.map((member, i) => (
+      <div className="space-y-2">
+        {/* Table Header */}
+        <div className="hidden lg:grid lg:grid-cols-[60px_1.5fr_1fr_2fr_120px] gap-6 px-10 py-6 text-[9px] font-black text-white/10 uppercase tracking-[0.3em] border-b border-white/5">
+          <div className="flex justify-center">Sign</div>
+          <div>Name / Identität</div>
+          <div>Benutzername</div>
+          <div>Kontakt / Notiz</div>
+          <div className="text-right pr-4">Aktion</div>
+        </div>
+
+        <div className="space-y-px">
+          {filteredMembers.map((member, i) => (
             <motion.div 
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ delay: i * 0.02, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               key={member.id} 
-              className="p-6 sm:p-10 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-white/[0.03] gap-8 transition-all duration-500 group relative rounded-[2rem] mx-2 my-1"
+              className="group relative"
             >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-[1.8rem] bg-surface-elevated border border-white/10 flex items-center justify-center font-serif text-2xl sm:text-3xl font-bold text-white shadow-2xl group-hover:scale-105 transition-transform duration-700 relative overflow-hidden">
-                  <div className="relative z-10">{member.name.charAt(0).toUpperCase()}</div>
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
-                </div>
-                <div className="space-y-3">
-                  <div className="font-serif text-3xl sm:text-4xl text-white tracking-tighter font-bold">{member.name}</div>
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-6">
-                    {member.email && (
-                      <div className="px-3 py-1 bg-white/5 rounded-lg text-[9px] font-black text-white/30 uppercase tracking-[0.2em] border border-white/5">
-                        {member.email}
-                      </div>
-                    )}
-                    {member.notes && (
-                      <div className="text-xs font-medium text-white/10 italic tracking-tight">"{member.notes}"</div>
-                    )}
+              <div className="lg:grid lg:grid-cols-[60px_1.5fr_1fr_2fr_120px] gap-6 px-10 py-5 bg-white/[0.01] hover:bg-white/[0.04] transition-all duration-300 items-center border border-transparent hover:border-white/5 rounded-2xl">
+                {/* Avatar / Sign */}
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-surface-elevated border border-white/10 flex items-center justify-center font-serif text-sm font-bold text-white/60 shadow-lg relative overflow-hidden group-hover:scale-105 transition-transform">
+                    <div className="relative z-10">{member.name.charAt(0).toUpperCase()}</div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-30" />
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button 
-                  onClick={() => openEdit(member)}
-                  className="w-12 h-12 flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 rounded-2xl transition-all active:scale-90"
-                  title="Bearbeiten"
-                >
-                  <Edit2 className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={() => setDeleteId(member.id)}
-                  className="w-12 h-12 flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all active:scale-90"
-                  title="Löschen"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+
+                {/* Name */}
+                <div className="flex flex-col gap-1">
+                  <span className="font-serif text-xl font-bold text-white transition-colors group-hover:text-white tracking-tighter">
+                    {member.name}
+                  </span>
+                  <div className="lg:hidden text-[9px] font-black text-white/20 uppercase tracking-widest">
+                    @{member.username || 'kein_user'}
+                  </div>
+                </div>
+
+                {/* Username */}
+                <div className="hidden lg:block">
+                  <span className="text-xs font-mono text-white/30 group-hover:text-white/60 transition-colors">
+                    {member.username ? `@${member.username}` : '—'}
+                  </span>
+                </div>
+
+                {/* Info / Email */}
+                <div className="flex flex-col sm:flex-row lg:items-center gap-4">
+                  {member.email ? (
+                    <div className="flex items-center gap-2 text-xs text-white/40 font-medium">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500/50" />
+                      {member.email}
+                    </div>
+                  ) : (
+                    <span className="text-white/10 text-[9px] font-black uppercase tracking-widest">Keine E-Mail</span>
+                  )}
+                  {member.notes && (
+                    <div className="hidden xl:block h-3 w-px bg-white/10" />
+                  )}
+                  {member.notes && (
+                    <span className="text-xs text-white/20 italic truncate max-w-[200px]" title={member.notes}>
+                      "{member.notes}"
+                    </span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => openEdit(member)}
+                    className="w-9 h-9 flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 rounded-xl transition-all active:scale-90"
+                    title="Bearbeiten"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setDeleteId(member.id)}
+                    className="w-9 h-9 flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all active:scale-90"
+                    title="Löschen"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           ))}
-          {members.length === 0 && (
+        </div>
+          {filteredMembers.length === 0 && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -208,11 +277,20 @@ export default function Members() {
               <div className="w-24 h-24 bg-white/[0.02] rounded-[3rem] flex items-center justify-center mx-auto mb-10 border border-white/5 shadow-2xl">
                 <Users className="w-10 h-10 text-white/10" />
               </div>
-              <p className="text-white/20 font-serif text-2xl tracking-tight">Noch keine Mitglieder angelegt.</p>
+              <p className="text-white/20 font-serif text-2xl tracking-tight">
+                {searchTerm ? 'Keine Treffer für deine Suche.' : 'Noch keine Mitglieder angelegt.'}
+              </p>
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="mt-6 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+                >
+                  Suche zurücksetzen
+                </button>
+              )}
             </motion.div>
           )}
         </div>
-      </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-6 z-50 backdrop-blur-2xl">
