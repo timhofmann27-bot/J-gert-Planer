@@ -440,6 +440,36 @@ adminRouter.post('/events/:id/invites/:inviteId/resend', (req, res) => {
   }
 });
 
+adminRouter.post('/events/:id/remind-pending', (req, res) => {
+  try {
+    const invitees = db.prepare(`
+      SELECT i.person_id, i.token, p.password_hash
+      FROM invitees i 
+      JOIN persons p ON i.person_id = p.id 
+      WHERE i.event_id = ? AND (i.status = 'pending' OR i.status IS NULL)
+    `).all(req.params.id) as any[];
+    
+    const event = db.prepare('SELECT title FROM events WHERE id = ?').get(req.params.id) as any;
+
+    const insertNotif = db.prepare(`
+      INSERT INTO notifications (user_type, user_id, title, message, link)
+      VALUES ('person', ?, ?, ?, ?)
+    `);
+
+    db.transaction(() => {
+      for (const invitee of invitees) {
+        if (invitee.password_hash) {
+          insertNotif.run(invitee.person_id, 'Erinnerung: Abstimmung', `Bitte gib noch deine Rückmeldung zu "${event.title}" ab.`, `/invite/${invitee.token}`);
+        }
+      }
+    })();
+
+    res.json({ success: true, count: invitees.length });
+  } catch (e: any) {
+    res.status(400).json({ error: 'Fehler beim Senden der Erinnerungen' });
+  }
+});
+
 adminRouter.delete('/events/:id/invites/:inviteId', (req, res) => {
   db.prepare('DELETE FROM invitees WHERE id = ? AND event_id = ?').run(req.params.inviteId, req.params.id);
   res.json({ success: true });

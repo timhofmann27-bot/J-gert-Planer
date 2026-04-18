@@ -11,10 +11,10 @@
   --color-surface: #050505;
   --color-surface-muted: #0d0d0d;
   --color-surface-elevated: #171717;
-  --color-border: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.06);
   --color-text: #ffffff;
   --color-text-muted: rgba(255, 255, 255, 0.6);
-  --color-text-dim: rgba(255, 255, 255, 0.3);
+  --color-text-dim: rgba(255, 255, 255, 0.25);
   
   --color-accent: #ffffff;
   --color-accent-muted: rgba(255, 255, 255, 0.1);
@@ -22,8 +22,12 @@
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
 
-  --radius-xl: 1.5rem;
-  --radius-2xl: 2rem;
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
   --radius-3xl: 2.5rem;
   --radius-4xl: 4rem;
 }

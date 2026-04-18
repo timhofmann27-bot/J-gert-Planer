@@ -292,6 +292,17 @@ export default function EventDetails() {
     }
   };
 
+  const handleRemindPending = async () => {
+    try {
+      const res = await fetch(`/api/admin/events/${id}/remind-pending`, { method: 'POST' });
+      if (!res.ok) throw new Error('Fehler beim Senden der Erinnerungen');
+      const data = await res.json();
+      toast.success(`${data.count} Erinnerungen gesendet!`);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const handleSaveChecklistItem = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -728,28 +739,35 @@ export default function EventDetails() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
               {/* Main Content: Invites List */}
               <div className="lg:col-span-2 space-y-10">
-          <div className="bg-surface-muted rounded-[3rem] border border-white/5 overflow-hidden shadow-2xl">
-            <div className="p-8 sm:p-10 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white/[0.02]">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-serif font-bold text-white flex items-center gap-3 tracking-tighter">
+          <div className="bg-surface-muted rounded-2xl border border-white/5 overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/[0.02]">
+              <div className="space-y-0.5">
+                <h2 className="text-lg font-bold text-white flex items-center gap-3 tracking-tight">
                   Teilnehmer
-                  <div className="px-3 py-1 bg-white/5 rounded-full text-xs font-bold text-white/30 border border-white/5">
+                  <div className="px-2 py-0.5 bg-white/5 rounded-md text-[10px] font-bold text-white/50 border border-white/5">
                     {invites.length}
                   </div>
                 </h2>
-                <p className="text-white/30 text-xs font-medium tracking-tight">Status aller versendeten Einladungen</p>
+                <p className="text-white/40 text-[10px] font-medium tracking-wide">Status aller Einladungen</p>
               </div>
-              <div className="w-full sm:w-auto">
+              <div className="w-full sm:w-auto flex gap-2">
+                <button 
+                  onClick={handleRemindPending}
+                  disabled={stats.pending === 0}
+                  className="w-full sm:w-auto border border-white/10 rounded-md text-[9px] font-bold px-4 py-2 bg-white/5 hover:bg-white/10 text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-widest"
+                >
+                  Erinnern ({stats.pending})
+                </button>
                 <select 
                   value={filter} 
                   onChange={e => setFilter(e.target.value)}
-                  className="w-full sm:w-auto border border-white/10 rounded-2xl text-[10px] font-black px-6 py-3 bg-black text-white outline-none focus:ring-2 focus:ring-white/10 transition-all cursor-pointer uppercase tracking-[0.2em] shadow-xl"
+                  className="w-full sm:w-auto border border-white/10 rounded-md text-[9px] font-bold px-4 py-2 bg-black text-white outline-none focus:ring-1 focus:ring-white/20 transition-all cursor-pointer uppercase tracking-widest"
                 >
-                  <option value="all">Alle anzeigen</option>
+                  <option value="all">Alle</option>
                   <option value="yes">Zusagen</option>
                   <option value="maybe">Vielleicht</option>
                   <option value="no">Absagen</option>
-                  <option value="pending">Noch offen</option>
+                  <option value="pending">Offen</option>
                 </select>
               </div>
             </div>
@@ -757,36 +775,35 @@ export default function EventDetails() {
             <div className="divide-y divide-white/5 px-2">
               {filteredInvitees.length > 0 ? (
                 filteredInvitees.map((invitee: any) => (
-                  <div key={invitee.id} className="p-6 hover:bg-white/[0.03] transition-all group rounded-2xl mx-2 my-1">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                      <div className="flex items-center gap-5">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 font-serif text-xl font-bold shadow-2xl relative overflow-hidden ${
-                          invitee.status === 'yes' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' :
-                          invitee.status === 'no' ? 'bg-red-500/10 text-red-400 border border-red-500/10' :
-                          invitee.status === 'maybe' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/10' :
-                          'bg-white/5 text-white/20 border border-white/5'
+                  <div key={invitee.id} className="p-4 hover:bg-white/[0.02] transition-all rounded-lg my-1">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 font-bold text-sm border ${
+                          invitee.status === 'yes' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/10' :
+                          invitee.status === 'no' ? 'bg-red-500/10 text-red-400 border-red-500/10' :
+                          invitee.status === 'maybe' ? 'bg-amber-500/10 text-amber-400 border-amber-500/10' :
+                          'bg-white/5 text-white/30 border-white/5'
                         }`}>
-                          <div className="relative z-10">{(invitee.name_snapshot || invitee.current_name || '?').charAt(0).toUpperCase()}</div>
-                          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+                          {(invitee.name_snapshot || invitee.current_name || '?').charAt(0).toUpperCase()}
                         </div>
-                        <div className="space-y-1.5">
-                          <div className="font-serif text-xl text-white flex items-center gap-3 tracking-tight font-bold">
+                        <div className="space-y-0.5">
+                          <div className="text-sm text-white flex items-center gap-2 font-semibold">
                             {invitee.name_snapshot || invitee.current_name}
                             {invitee.guests_count > 0 && (
-                              <div className="text-[10px] bg-white text-black px-2 py-0.5 rounded-lg font-black tracking-widest shadow-xl">
+                              <div className="text-[9px] bg-white text-black px-1.5 py-0 rounded font-black tracking-wider">
                                 +{invitee.guests_count}
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 mt-1">
                             <select 
                               value={invitee.status} 
                               onChange={(e) => handleUpdateStatus(invitee.id, e.target.value)}
-                              className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl bg-black border transition-all cursor-pointer outline-none shadow-lg ${
-                                invitee.status === 'yes' ? 'text-emerald-400 border-emerald-500/20' :
-                                invitee.status === 'no' ? 'text-red-400 border-red-500/20' :
-                                invitee.status === 'maybe' ? 'text-amber-400 border-amber-500/20' :
-                                'text-white/20 border-white/5'
+                              className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-transparent transition-all cursor-pointer outline-none ${
+                                  invitee.status === 'yes' ? 'text-emerald-400 border-emerald-500/20' :
+                                  invitee.status === 'no' ? 'text-red-400 border-red-500/20' :
+                                  invitee.status === 'maybe' ? 'text-amber-400 border-amber-500/20' :
+                                  'text-white/30 border-white/5'
                               }`}
                             >
                               <option value="pending">Offen</option>
