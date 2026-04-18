@@ -10,6 +10,8 @@ export interface WeatherData {
   current: number | null;
   location: string;
   date: string;
+  hour?: number;
+  isHourly?: boolean;
 }
 
 async function fetchWithTimeout(url: string, timeout: number): Promise<Response> {
@@ -30,12 +32,7 @@ async function fetchWithTimeout(url: string, timeout: number): Promise<Response>
 }
 
 function getCacheKey(location: string, date: string): string {
-  return `${location.toLowerCase().trim()}_${date.split('T')[0]}`;
-}
-
-function parseDate(dateInput: string | Date): Date {
-  if (dateInput instanceof Date) return dateInput;
-  return new Date(dateInput);
+  return `${location.toLowerCase().trim()}_${date}`;
 }
 
 function getWeatherCodeLabel(code: number): string {
@@ -58,116 +55,115 @@ export async function fetchWeather(location: string, dateStr: string): Promise<W
   const cached = WEATHER_CACHE.get(cacheKey);
   
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log('fetchWeather: cache hit for', cacheKey);
     return cached.data;
   }
 
   try {
-    console.log('fetchWeather: fetching for', location, dateStr);
-    
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=de&format=json`;
     const geoRes = await fetchWithTimeout(geoUrl, FETCH_TIMEOUT);
     
-    if (!geoRes.ok) {
-      console.error('fetchWeather: geocoding failed', geoRes.status);
-      return null;
-    }
+    if (!geoRes.ok) return null;
     
     const geoData = await geoRes.json();
-    
-    if (!geoData.results || geoData.results.length === 0) {
-      console.error('fetchWeather: no results for location', location);
-      return null;
-    }
+    if (!geoData.results || geoData.results.length === 0) return null;
 
     const { latitude, longitude, name: geoName } = geoData.results[0];
-    const eventDate = parseDate(dateStr);
+    const eventDate = new Date(dateStr);
     
-    if (isNaN(eventDate.getTime())) {
-      console.error('fetchWeather: invalid date', dateStr);
-      return null;
-    }
+    if (isNaN(eventDate.getTime())) return null;
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const targetDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-    const daysDiff = Math.ceil((targetDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    let weatherData: any;
-    
-    if (daysDiff < 0) {
-      console.log('fetchWeather: past date, getting current weather');
+    const eventTimeMs = eventDate.getTime();
+    const nowMs = now.getTime();
+    const hoursDiff = (eventTimeMs - nowMs) / (1000 * 60 * 60);
+
+    let weather: WeatherData;
+
+    if (hoursDiff < 0) {
       const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`;
       const res = await fetchWithTimeout(weatherUrl, FETCH_TIMEOUT);
       if (!res.ok) return null;
-      weatherData = await res.json();
+      const w = await res.json();
       
-      const w = weatherData.current_weather;
-      const weather: WeatherData = {
-        temp: Math.round(w?.temperature ?? 0),
-        tempMin: Math.round(w?.temperature ?? 0),
-        code: w?.weathercode ?? 0,
+      weather = {
+        temp: Math.round(w.current_weather?.temperature ?? 0),
+        tempMin: Math.round(w.current_weather?.temperature ?? 0),
+        code: w.current_weather?.weathercode ?? 0,
         rainProb: 0,
-        current: Math.round(w?.temperature ?? 0),
+        current: Math.round(w.current_weather?.temperature ?? 0),
         location: geoName || location,
         date: dateStr
       };
+    } else if (hoursDiff <= 48) {
+      const forecastDays = Math.ceil(hoursDiff / 24) + 1;
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,weathercode,precipitation_probability&current_weather=true&timezone=auto&forecast_days=${Math.min(forecastDays, 7)}`;
+      const res = await fetchWithTimeout(weatherUrl, FETCH_TIMEOUT);
+      if (!res.ok) return null;
+      const w = await res.json();
       
-      WEATHER_CACHE.set(cacheKey, { data: weather, timestamp: Date.now() });
-      return weather;
-    }
-
-    const forecastDays = Math.min(daysDiff + 7, 16);
-    console.log('fetchWeather: requesting', forecastDays, 'days forecast');
-    
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&current_weather=true&timezone=auto&forecast_days=${forecastDays}`;
-    const weatherRes = await fetchWithTimeout(weatherUrl, FETCH_TIMEOUT);
-    
-    if (!weatherRes.ok) {
-      console.error('fetchWeather: forecast API failed', weatherRes.status);
-      return null;
-    }
-    
-    weatherData = await weatherRes.json();
-    
-    if (!weatherData.daily?.time) {
-      console.error('fetchWeather: no daily data');
-      return null;
-    }
-
-    const targetDateStr = dateStr.split('T')[0];
-    const times = weatherData.daily.time;
-    let dayIndex = times.indexOf(targetDateStr);
-    
-    if (dayIndex === -1) {
-      console.log('fetchWeather: date not found, finding closest', targetDateStr);
-      for (let i = 0; i < times.length; i++) {
-        if (new Date(times[i]) >= eventDate) {
-          dayIndex = i;
-          break;
+      if (!w.hourly?.time) return null;
+      
+      const times = w.hourly.time;
+      const eventHourStr = dateStr.slice(0, 16);
+      let hourIndex = times.indexOf(eventHourStr);
+      
+      if (hourIndex === -1) {
+        for (let i = 0; i < times.length; i++) {
+          if (new Date(times[i]) >= eventDate) {
+            hourIndex = i;
+            break;
+          }
         }
       }
+      
+      if (hourIndex === -1) hourIndex = times.length - 1;
+
+      weather = {
+        temp: Math.round(w.hourly.temperature_2m[hourIndex] ?? w.current_weather?.temperature ?? 0),
+        tempMin: Math.round(w.hourly.temperature_2m[Math.max(0, hourIndex - 3)] ?? w.current_weather?.temperature ?? 0),
+        code: w.hourly.weathercode[hourIndex] ?? 0,
+        rainProb: w.hourly.precipitation_probability[hourIndex] ?? 0,
+        current: hoursDiff < 1 ? Math.round(w.current_weather?.temperature ?? 0) : null,
+        location: geoName || location,
+        date: dateStr,
+        hour: eventDate.getHours(),
+        isHourly: true
+      };
+    } else {
+      const forecastDays = Math.min(Math.ceil(hoursDiff / 24) + 7, 16);
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&current_weather=true&timezone=auto&forecast_days=${forecastDays}`;
+      const res = await fetchWithTimeout(weatherUrl, FETCH_TIMEOUT);
+      if (!res.ok) return null;
+      const w = await res.json();
+      
+      if (!w.daily?.time) return null;
+      
+      const times = w.daily.time;
+      const targetDate = dateStr.split('T')[0];
+      let dayIndex = times.indexOf(targetDate);
+      
+      if (dayIndex === -1) {
+        for (let i = 0; i < times.length; i++) {
+          if (new Date(times[i]) >= eventDate) {
+            dayIndex = i;
+            break;
+          }
+        }
+      }
+      
+      if (dayIndex === -1) dayIndex = times.length - 1;
+
+      weather = {
+        temp: Math.round(w.daily?.temperature_2m_max?.[dayIndex] ?? 0),
+        tempMin: Math.round(w.daily?.temperature_2m_min?.[dayIndex] ?? 0),
+        code: w.daily?.weathercode?.[dayIndex] ?? 0,
+        rainProb: w.daily?.precipitation_probability_max?.[dayIndex] ?? 0,
+        current: null,
+        location: geoName || location,
+        date: dateStr,
+        isHourly: false
+      };
     }
-    
-    if (dayIndex === -1) {
-      console.log('fetchWeather: no matching date found, using last available');
-      dayIndex = times.length - 1;
-    }
-
-    console.log('fetchWeather: using dayIndex', dayIndex, 'for', times[dayIndex]);
-
-    const w = weatherData;
-    const weather: WeatherData = {
-      temp: Math.round(w.daily?.temperature_2m_max?.[dayIndex] ?? w.current_weather?.temperature ?? 0),
-      tempMin: Math.round(w.daily?.temperature_2m_min?.[dayIndex] ?? w.current_weather?.temperature ?? 0),
-      code: w.daily?.weathercode?.[dayIndex] ?? 0,
-      rainProb: w.daily?.precipitation_probability_max?.[dayIndex] ?? 0,
-      current: daysDiff === 0 ? Math.round(w.current_weather?.temperature ?? 0) : null,
-      location: geoName || location,
-      date: dateStr
-    };
-
-    console.log('fetchWeather: result', weather);
 
     WEATHER_CACHE.set(cacheKey, { data: weather, timestamp: Date.now() });
     return weather;
