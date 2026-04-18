@@ -59,9 +59,11 @@ export default function EventDetails() {
   }, [aktion?.location, aktion?.date]);
 
   const loadWeather = async (location: string, dateStr: string) => {
+    console.log('loadWeather called:', location, dateStr);
     setWeatherLoading(true);
     try {
       const weatherData = await fetchWeather(location, dateStr);
+      console.log('weatherData result:', weatherData);
       setWeather(weatherData);
     } catch (e) {
       console.error('Weather fetch error:', e);

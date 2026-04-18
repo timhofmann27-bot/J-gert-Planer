@@ -46,6 +46,8 @@ function getWeatherCodeLabel(code: number): string {
 }
 
 export async function fetchWeather(location: string, dateStr: string): Promise<WeatherData | null> {
+  console.log('fetchWeather START:', location, dateStr);
+  
   if (!location || !dateStr) {
     console.error('fetchWeather: missing location or date');
     return null;
@@ -55,17 +57,27 @@ export async function fetchWeather(location: string, dateStr: string): Promise<W
   const cached = WEATHER_CACHE.get(cacheKey);
   
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('fetchWeather: cache hit');
     return cached.data;
   }
 
   try {
+    console.log('fetchWeather: calling geocoding API');
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=de&format=json`;
     const geoRes = await fetchWithTimeout(geoUrl, FETCH_TIMEOUT);
     
-    if (!geoRes.ok) return null;
+    if (!geoRes.ok) {
+      console.error('fetchWeather: geocoding failed', geoRes.status);
+      return null;
+    }
     
     const geoData = await geoRes.json();
-    if (!geoData.results || geoData.results.length === 0) return null;
+    console.log('fetchWeather: geocoding result', geoData);
+    
+    if (!geoData.results || geoData.results.length === 0) {
+      console.error('fetchWeather: no geocoding results');
+      return null;
+    }
 
     const { latitude, longitude, name: geoName } = geoData.results[0];
     const eventDate = new Date(dateStr);
@@ -95,13 +107,22 @@ export async function fetchWeather(location: string, dateStr: string): Promise<W
         date: dateStr
       };
     } else if (hoursDiff <= 48) {
+      console.log('fetchWeather: using HOURLY forecast', hoursDiff, 'hours until event');
       const forecastDays = Math.ceil(hoursDiff / 24) + 1;
       const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,weathercode,precipitation_probability&current_weather=true&timezone=auto&forecast_days=${Math.min(forecastDays, 7)}`;
+      console.log('fetchWeather: URL', weatherUrl);
       const res = await fetchWithTimeout(weatherUrl, FETCH_TIMEOUT);
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.error('fetchWeather: hourly forecast failed', res.status);
+        return null;
+      }
       const w = await res.json();
+      console.log('fetchWeather: hourly result keys', Object.keys(w));
       
-      if (!w.hourly?.time) return null;
+      if (!w.hourly?.time) {
+        console.error('fetchWeather: no hourly data');
+        return null;
+      }
       
       const times = w.hourly.time;
       const eventHourStr = dateStr.slice(0, 16);
