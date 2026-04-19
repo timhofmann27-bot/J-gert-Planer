@@ -225,7 +225,7 @@ body {
   @apply absolute inset-0 bg-white/10 rounded-full scale-0 opacity-0 transition-all duration-500;
 }
 
-@utility ripple-container:active::after {
+.ripple-container:active::after {
   @apply scale-150 opacity-100;
 }
 
