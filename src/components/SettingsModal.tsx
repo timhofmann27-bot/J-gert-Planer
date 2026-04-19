@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Eye, EyeOff, Settings, UserPlus, Trash2, Shield } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Eye, EyeOff, Settings, UserPlus, Trash2, Shield, Camera, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
+import { getAvatarColor, getInitials, processAvatarFile } from '../lib/avatar';
 
 interface Props {
   isOpen: boolean;
@@ -11,10 +12,13 @@ interface Props {
 interface AdminUser {
   id: number;
   username: string;
+  avatar_url?: string | null;
 }
 
 export default function SettingsModal({ isOpen, onClose }: Props) {
   const [username, setUsername] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,7 +26,8 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Admin Management state
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [showAddAdmin, setShowAddAdmin] = useState(false);
@@ -46,22 +51,48 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
         .then(res => res.json())
         .then(data => {
           if (data.username) setUsername(data.username);
+          if (data.avatar_url) setAvatarUrl(data.avatar_url);
         })
         .catch(() => toast.error('Fehler beim Laden der Einstellungen'));
-      
+
       fetch('/api/admin/check')
         .then(res => res.json())
         .then(data => setCurrentUser(data.user))
         .catch(() => {});
 
       fetchAdmins();
-      
+
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setShowAddAdmin(false);
     }
   }, [isOpen]);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 500 * 1024) {
+      toast.error('Bild ist zu groß (max. 500KB)');
+      return;
+    }
+
+    if (!file.type.match('image.*')) {
+      toast.error('Bitte nur Bilddateien auswählen');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const triggerAvatarUpload = () => {
+    fileInputRef.current?.click();
+  };
 
   if (!isOpen) return null;
 
@@ -138,7 +169,12 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, currentPassword, newPassword })
+        body: JSON.stringify({
+          username,
+          avatar_url: avatarPreview || avatarUrl,
+          currentPassword,
+          newPassword
+        })
       });
 
       if (!res.ok) {
@@ -177,14 +213,52 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center py-6 pb-8">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAvatarChange}
+              accept="image/*"
+              className="hidden"
+            />
+            <div
+              onClick={triggerAvatarUpload}
+              className="relative cursor-pointer group"
+            >
+              <div
+                className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-2xl ring-4 ring-white/10 transition-all group-hover:ring-white/20 overflow-hidden"
+                style={{
+                  backgroundColor: avatarPreview || avatarUrl
+                    ? 'transparent'
+                    : getAvatarColor(username || 'User')
+                }}
+              >
+                {avatarPreview || avatarUrl ? (
+                  <img
+                    src={avatarPreview || avatarUrl || ''}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{getInitials(username || 'User')}</span>
+                )}
+              </div>
+              <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                <Camera className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-white/40 mt-4">Klick um Avatar zu ändern</p>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-white/20 uppercase tracking-widest ml-1">Benutzername</label>
-            <input 
-              required 
-              type="text" 
-              value={username} 
-              onChange={e => setUsername(e.target.value)} 
-              className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:ring-2 focus:ring-white/10 outline-none transition-all" 
+            <input
+              required
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:ring-2 focus:ring-white/10 outline-none transition-all"
             />
           </div>
 

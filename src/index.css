@@ -7,8 +7,30 @@
   --font-display: "Space Grotesk", sans-serif;
   --font-serif: "Cormorant Garamond", serif;
   
-  /* Dark theme (default) */
+  /* Light theme colors */
   --color-brand: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f9fafb;
+  --color-surface-elevated: #f3f4f6;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-text: #050505;
+  --color-text-muted: rgba(0, 0, 0, 0.6);
+  --color-text-dim: rgba(0, 0, 0, 0.3);
+  
+  --color-accent: #050505;
+  --color-accent-muted: rgba(0, 0, 0, 0.1);
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 2.5rem;
+  --radius-4xl: 4rem;
+}
+
+/* Dark theme overrides */
+.dark {
   --color-surface: #050505;
   --color-surface-muted: #0d0d0d;
   --color-surface-elevated: #171717;
@@ -19,27 +41,10 @@
   
   --color-accent: #ffffff;
   --color-accent-muted: rgba(255, 255, 255, 0.1);
+  /* Keep the same accent colors? */
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-
-  --radius-xl: 1.5rem;
-  --radius-2xl: 2rem;
-  --radius-3xl: 2.5rem;
-  --radius-4xl: 4rem;
-}
-
-/* Light theme overrides */
-:root.light {
-  --color-surface: #ffffff;
-  --color-surface-muted: #f5f5f5;
-  --color-surface-elevated: #fafafa;
-  --color-border: rgba(0, 0, 0, 0.08);
-  --color-text: #0a0a0a;
-  --color-text-muted: rgba(0, 0, 0, 0.6);
-  --color-text-dim: rgba(0, 0, 0, 0.3);
-  --color-accent: #0a0a0a;
-  --color-accent-muted: rgba(0, 0, 0, 0.05);
 }
 
 body {
@@ -51,16 +56,6 @@ body {
   overscroll-behavior-y: none;
   font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv03', 'cv04', 'case';
   transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-body {
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
-  font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv03', 'cv04', 'case';
 }
 
 @layer base {
@@ -102,6 +97,136 @@ body {
 
 .premium-card {
   @apply glass hover:bg-white/[0.05] transition-all hover:-translate-y-1 active:scale-[0.98];
+}
+
+/* Micro-interactions */
+@utility micro-hover {
+  @apply transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)];
+}
+
+@utility micro-hover:hover {
+  @apply scale-[1.02] shadow-lg;
+}
+
+@utility micro-hover:active {
+  @apply scale-[0.98];
+}
+
+@utility micro-hover:focus-visible {
+  @apply ring-2 ring-white/20 ring-offset-2 ring-offset-transparent;
+}
+
+/* Skeleton Loading */
+@utility skeleton {
+  @apply animate-pulse bg-white/5 rounded-xl;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Subtle entrance animations */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@utility animate-slide-up {
+  animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Staggered animation delays */
+@utility delay-75 {
+  animation-delay: 75ms;
+}
+
+@utility delay-100 {
+  animation-delay: 100ms;
+}
+
+@utility delay-150 {
+  animation-delay: 150ms;
+}
+
+@utility delay-200 {
+  animation-delay: 200ms;
+}
+
+@utility delay-300 {
+  animation-delay: 300ms;
+}
+
+/* Button press effect */
+@utility btn-press {
+  @apply transition-all duration-200 active:scale-95;
+}
+
+/* Glow on hover for interactive elements */
+@utility glow-hover {
+  @apply transition-all duration-300;
+}
+
+@utility glow-hover:hover {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+/* Ripple effect container */
+@utility ripple-container {
+  @apply relative overflow-hidden;
+}
+
+@utility ripple-container::after {
+  content: '';
+  @apply absolute inset-0 bg-white/10 rounded-full scale-0 opacity-0 transition-all duration-500;
+}
+
+@utility ripple-container:active::after {
+  @apply scale-150 opacity-100;
 }
 
 @keyframes fade-in-up {

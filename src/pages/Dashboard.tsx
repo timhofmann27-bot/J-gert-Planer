@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, MapPin, Clock, ChevronRight, Edit2, Trash2, Settings, Users, CheckCircle2, Calendar, Archive, Hourglass, UserPlus, Compass, Trophy, Megaphone, Zap } from 'lucide-react';
+import { Plus, MapPin, Clock, ChevronRight, Edit2, Trash2, Settings, Users, CheckCircle2, Calendar, Archive, Hourglass, UserPlus, Compass, Trophy, Megaphone, Zap, Download } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format, parseISO, formatDistanceToNow, isFuture } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import SettingsModal from '../components/SettingsModal';
+import DashboardCustomizer from '../components/DashboardCustomizer';
+import { useDashboardWidgets } from '../lib/dashboard';
+import { downloadCSV, formatStatsForCSV } from '../lib/export';
 
 export default function Dashboard() {
   const [aktionen, setAktionen] = useState<any[]>([]);
@@ -14,11 +17,13 @@ export default function Dashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [editingAktion, setEditingAktion] = useState<any>(null);
   const [formData, setFormData] = useState({ title: '', date: '', location: '', meeting_point: '', description: '', response_deadline: '', type: 'event' });
-  
+
   const [stats, setStats] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showPast, setShowPast] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+
+  const { widgets, toggleWidget, moveWidget, resetWidgets } = useDashboardWidgets();
 
   useEffect(() => {
     fetchAktionen();
@@ -236,67 +241,79 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-4 w-full sm:w-auto">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-14 h-14 flex items-center justify-center bg-white/5 border border-white/5 text-white/50 rounded-2xl hover:bg-white/10 transition-all hover:text-white active:scale-90"
-            title="Einstellungen"
-          >
-            <Settings className="w-6 h-6" />
-          </button>
-          <button
-            onClick={openNew}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-4 bg-white text-black px-12 h-16 rounded-[2rem] hover:bg-white/90 transition-all text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-white/10 active:scale-[0.95]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Neu erstellen</span>
-          </button>
-        </div>
-      </div>
+           <button
+             onClick={() => setShowSettings(true)}
+             className="w-14 h-14 flex items-center justify-center bg-white/5 border border-white/5 text-white/50 rounded-2xl hover:bg-white/10 transition-all hover:text-white active:scale-90"
+             title="Einstellungen"
+           >
+             <Settings className="w-6 h-6" />
+           </button>
+           <button
+             onClick={openNew}
+             className="flex-1 sm:flex-none flex items-center justify-center gap-4 bg-white text-black px-12 h-16 rounded-[2rem] hover:bg-white/90 transition-all text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-white/10 active:scale-[0.95]"
+           >
+             <Plus className="w-4 h-4" />
+             <span>Neu erstellen</span>
+           </button>
+         </div>
+       </div>
 
-      {stats?.pending_requests > 0 && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-16"
-        >
-          <Link 
-            to="/registration-requests"
-            className="flex items-center justify-between p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem] hover:bg-white/[0.05] transition-all group overflow-hidden relative shadow-2xl active:scale-[0.98]"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full -mr-10 -mt-10 blur-2xl" />
-            <div className="flex items-center gap-6 relative z-10">
-              <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-white/20 animate-pulse">
-                <UserPlus className="w-7 h-7 text-black" />
-              </div>
-              <div>
-                <h3 className="text-xl font-serif font-bold text-white mb-1">Registrierungsanfragen</h3>
-                <p className="text-sm text-white/40 font-medium tracking-tight">Es warten {stats.pending_requests} Person(en) auf Freischaltung.</p>
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group-hover:translate-x-1 transition-transform bg-white/5 group-hover:bg-white group-hover:text-black">
-              <ChevronRight className="w-5 h-5" />
-            </div>
-          </Link>
-        </motion.div>
-      )}
+       {/* Dashboard Customizer */}
+       <div className="flex justify-end mb-8">
+         <DashboardCustomizer
+           widgets={widgets}
+           onToggle={toggleWidget}
+           onMove={moveWidget}
+           onReset={resetWidgets}
+           onClose={() => {}}
+         />
+       </div>
 
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-32">
-          {[
-            { label: 'Gesamt Aktionen', value: stats.events, icon: Calendar },
-            { label: 'Aktive Personen', value: stats.persons, icon: Users },
-            { label: 'Versendete Einladungen', value: stats.invites, icon: CheckCircle2 },
-            { label: 'Archivierte Daten', value: stats.archived_events, sub: `${stats.archived_pct.toFixed(0)}%`, icon: Archive },
-          ].map((stat, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="premium-card p-10 rounded-[3rem] shadow-none group cursor-default"
-            >
-              <div className="flex flex-col gap-10">
-                <div className="flex justify-between items-center">
+       {stats?.pending_requests > 0 && (
+         <motion.div
+           initial={{ opacity: 0, y: 10 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="mb-16"
+         >
+           <Link
+             to="/registration-requests"
+             className="flex items-center justify-between p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem] hover:bg-white/[0.05] transition-all group overflow-hidden relative shadow-2xl active:scale-[0.98]"
+           >
+             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full -mr-10 -mt-10 blur-2xl" />
+             <div className="flex items-center gap-6 relative z-10">
+               <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-white/20 animate-pulse">
+                 <UserPlus className="w-7 h-7 text-black" />
+               </div>
+               <div>
+                 <h3 className="text-xl font-serif font-bold text-white mb-1">Registrierungsanfragen</h3>
+                 <p className="text-sm text-white/40 font-medium tracking-tight">Es warten {stats.pending_requests} Person(en) auf Freischaltung.</p>
+               </div>
+             </div>
+             <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group-hover:translate-x-1 transition-transform bg-white/5 group-hover:bg-white group-hover:text-black">
+               <ChevronRight className="w-5 h-5" />
+             </div>
+           </Link>
+         </motion.div>
+       )}
+
+       {/* Stats Widget */}
+       {widgets.find(w => w.id === 'stats')?.visible && stats && (
+         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-32">
+           {[
+             { label: 'Gesamt Aktionen', value: stats.events, icon: Calendar },
+             { label: 'Aktive Personen', value: stats.persons, icon: Users },
+             { label: 'Versendete Einladungen', value: stats.invites, icon: CheckCircle2 },
+             { label: 'Archivierte Daten', value: stats.archived_events, sub: `${stats.archived_pct.toFixed(0)}%`, icon: Archive },
+           ].map((stat, i) => (
+             <motion.div
+               key={i}
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               transition={{ delay: i * 0.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+               className="premium-card p-10 rounded-[3rem] shadow-none group cursor-default"
+             >
+               <div className="flex flex-col gap-10">
+                 <div className="flex justify-between items-center">
                   <div className="micro-label opacity-40">{stat.label}</div>
                   <stat.icon className="w-4 h-4 text-white/10 group-hover:text-white/30 transition-colors" />
                 </div>
@@ -311,36 +328,53 @@ export default function Dashboard() {
               </div>
             </motion.div>
           ))}
-        </div>
-      )}
+         </div>
+       )}
 
-      <div className="space-y-32">
-        {upcomingAktionen.length > 0 && (
-          <section>
-            <div className="flex items-center gap-6 mb-12 px-2 lg:px-0">
-              <h2 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] flex items-center gap-4 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)] animate-pulse" />
-                Anstehend
-              </h2>
-              <div className="h-px flex-1 bg-white/5" />
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              {upcomingAktionen.map((e, i) => renderAktionCard(e, i))}
-            </div>
-          </section>
-        )}
+       {/* Export Button next to stats */}
+       {stats && widgets.find(w => w.id === 'stats')?.visible && (
+         <div className="flex justify-end mb-8 -mt-20">
+           <button
+             onClick={() => {
+               const csvData = formatStatsForCSV(stats);
+               downloadCSV(csvData, 'JT-Orga_Statistik', ['Kennzahl', 'Wert']);
+               toast.success('Statistik exportiert');
+             }}
+             className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+             title="Statistik als CSV exportieren"
+           >
+             <Download className="w-4 h-4" /> Statistik exportieren
+           </button>
+         </div>
+       )}
 
-        {pastAktionen.length > 0 && (
-          <section className="opacity-90">
-            <div className="flex items-center gap-6 mb-12 px-2 lg:px-0">
-              <button 
-                onClick={() => setShowPast(!showPast)}
-                className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-[0.4em] flex items-center gap-4 shrink-0 transition-colors"
-              >
-                Vergangen ({pastAktionen.length})
-                <ChevronRight className={`w-3 h-3 transition-transform ${showPast ? 'rotate-90' : ''}`} />
-              </button>
-              <div className="h-px flex-1 bg-white/5" />
+       <div className="space-y-32">
+         {upcomingAktionen.length > 0 && widgets.find(w => w.id === 'upcoming')?.visible && (
+           <section>
+             <div className="flex items-center gap-6 mb-12 px-2 lg:px-0">
+               <h2 className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] flex items-center gap-4 shrink-0">
+                 <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)] animate-pulse" />
+                 Anstehend
+               </h2>
+               <div className="h-px flex-1 bg-white/5" />
+             </div>
+             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+               {upcomingAktionen.map((e, i) => renderAktionCard(e, i))}
+             </div>
+           </section>
+         )}
+
+         {pastAktionen.length > 0 && widgets.find(w => w.id === 'upcoming')?.visible && (
+           <section className="opacity-90">
+             <div className="flex items-center gap-6 mb-12 px-2 lg:px-0">
+               <button
+                 onClick={() => setShowPast(!showPast)}
+                 className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-[0.4em] flex items-center gap-4 shrink-0 transition-colors"
+               >
+                 Vergangen ({pastAktionen.length})
+                 <ChevronRight className={`w-3 h-3 transition-transform ${showPast ? 'rotate-90' : ''}`} />
+               </button>
+               <div className="h-px flex-1 bg-white/5" />
             </div>
             {showPast && (
               <motion.div 

@@ -40,9 +40,22 @@ async function startServer() {
     });
   }
 
+  console.log(`Attempting to listen on port ${PORT}...`);
   app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
-startServer();
+// Global error handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+startServer().catch(err => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});

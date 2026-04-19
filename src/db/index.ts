@@ -184,6 +184,15 @@ try {
   }
 }
 
+// Add avatar_url column to admin_users if it doesn't exist (migration)
+try {
+  db.exec('ALTER TABLE admin_users ADD COLUMN avatar_url TEXT');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) {
+    console.error('Error adding avatar_url column to admin_users:', e);
+  }
+}
+
 // Add email and password_hash to persons (migration)
 try {
   db.exec('ALTER TABLE persons ADD COLUMN email TEXT UNIQUE');

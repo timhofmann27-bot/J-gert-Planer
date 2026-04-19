@@ -106,10 +106,11 @@ const eventSchema = z.object({
 });
 
 const personSchema = z.object({
-  name: z.string().min(1, 'Name ist erforderlich').max(100).transform(sanitizeText),
-  username: z.string().max(50).optional().nullable().transform(v => v ? sanitizeText(v) : v),
-  email: z.string().email('Ungültige E-Mail Adresse').max(255).optional().nullable().or(z.literal('')),
-  notes: z.string().max(1000).optional().nullable().transform(v => v ? sanitizeText(v) : v)
+   name: z.string().min(1, 'Name ist erforderlich').max(100).transform(sanitizeText),
+   username: z.string().max(50).optional().nullable().transform(v => v ? sanitizeText(v) : v),
+   email: z.string().email('Ungültige E-Mail Adresse').max(255).optional().nullable().or(z.literal('')),
+   notes: z.string().max(1000).optional().nullable().transform(v => v ? sanitizeText(v) : v),
+   avatar_url: z.string().url().optional().nullable()
 });
 
 const inviteSchema = z.object({
@@ -128,6 +129,7 @@ const respondSchema = z.object({
 
 const settingsSchema = z.object({
   username: z.string().min(1, 'Benutzername ist erforderlich').max(50).transform(sanitizeText),
+  avatar_url: z.string().url().optional().nullable(),
   currentPassword: z.string().max(100).optional(),
   newPassword: z.string().max(100).optional()
 });
@@ -698,9 +700,9 @@ adminRouter.put('/notifications/read-all', (req, res) => {
 
 // Settings
 adminRouter.get('/settings', (req: any, res) => {
-  const user = db.prepare('SELECT username FROM admin_users WHERE id = ?').get(req.admin.id) as any;
+  const user = db.prepare('SELECT username, avatar_url FROM admin_users WHERE id = ?').get(req.admin.id) as any;
   if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
-  res.json({ username: user.username });
+  res.json({ username: user.username, avatar_url: user.avatar_url || null });
 });
 
 // Admin Management
@@ -744,8 +746,8 @@ adminRouter.delete('/admins/:id', (req, res) => {
 
 adminRouter.put('/settings', (req: any, res) => {
   try {
-    const { username, currentPassword, newPassword } = settingsSchema.parse(req.body);
-    
+    const { username, avatar_url, currentPassword, newPassword } = settingsSchema.parse(req.body);
+
     const user = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.admin.id) as any;
     if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
 
@@ -756,13 +758,13 @@ adminRouter.put('/settings', (req: any, res) => {
       if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
         return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
       }
-      
+
       const newHash = bcrypt.hashSync(newPassword, 10);
-      db.prepare('UPDATE admin_users SET username = ?, password_hash = ? WHERE id = ?')
-        .run(username, newHash, req.admin.id);
+      db.prepare('UPDATE admin_users SET username = ?, avatar_url = ?, password_hash = ? WHERE id = ?')
+        .run(username, avatar_url || null, newHash, req.admin.id);
     } else {
-      db.prepare('UPDATE admin_users SET username = ? WHERE id = ?')
-        .run(username, req.admin.id);
+      db.prepare('UPDATE admin_users SET username = ?, avatar_url = ? WHERE id = ?')
+        .run(username, avatar_url || null, req.admin.id);
     }
 
     // Keep persons table in sync if username changed
@@ -771,10 +773,10 @@ adminRouter.put('/settings', (req: any, res) => {
     }
 
     const token = jwt.sign({ id: req.admin.id, username: username }, JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('admin_token', token, { 
-      httpOnly: true, 
-      secure: true, 
-      sameSite: isProd ? 'lax' : 'none' 
+    res.cookie('admin_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: isProd ? 'lax' : 'none'
     });
 
     res.json({ success: true });

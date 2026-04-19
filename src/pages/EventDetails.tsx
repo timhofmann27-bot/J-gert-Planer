@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Users, CheckCircle, XCircle, HelpCircle, Clock, Copy, Trash2, Plus, MapPin, Calendar, MessageSquare, UserPlus, Send, Edit2, Hourglass, Train, Compass, Trophy, Megaphone, Zap, Sun, Cloud, Thermometer, Wind, CloudRain } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, XCircle, HelpCircle, Clock, Copy, Trash2, Plus, MapPin, Calendar, MessageSquare, UserPlus, Send, Edit2, Hourglass, Train, Compass, Trophy, Megaphone, Zap, Sun, Cloud, Thermometer, Wind, CloudRain, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -9,13 +9,15 @@ import ConfirmModal from '../components/ConfirmModal';
 import MapComponent from '../components/MapComponent';
 import TransitPlanner from '../components/TransitPlanner';
 import { generateVCalendar } from '../lib/calendar';
+import { fetchWeather, getWeatherLabel, WeatherData } from '../lib/weather';
+import { downloadCSV, formatInviteesForCSV } from '../lib/export';
 
 export default function EventDetails() {
   const { id } = useParams();
   if (!id) return <div className="p-8 text-center">Event nicht gefunden</div>;
   const [activeTab, setActiveTab] = useState<'overview' | 'participants' | 'planning'>('overview');
   const [aktion, setAktion] = useState<any>(null);
-  const [weather, setWeather] = useState<any>(null);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
   const [persons, setPersons] = useState<any[]>([]);
@@ -52,51 +54,25 @@ export default function EventDetails() {
   }, [id]);
 
   useEffect(() => {
+    console.log('Weather effect triggered:', { 
+      hasAktion: !!aktion,
+      location: aktion?.location,
+      date: aktion?.date
+    });
     if (aktion?.location) {
-      fetchWeather(aktion.location, aktion.date);
+      loadWeather(aktion.location, aktion.date);
+    } else {
+      console.log('Weather effect: no location, skipping');
     }
   }, [aktion?.location, aktion?.date]);
 
-  const fetchWeather = async (location: string, dateStr: string) => {
+  const loadWeather = async (location: string, dateStr: string) => {
+    console.log('loadWeather called:', location, dateStr);
     setWeatherLoading(true);
     try {
-      // 1. Geocoding
-      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=de&format=json`);
-      const geoData = await geoRes.json();
-      console.log('Geocoding response:', geoData);
-      
-      if (!geoData.results || geoData.results.length === 0) {
-        setWeather(null);
-        return;
-      }
-
-      const { latitude, longitude } = geoData.results[0];
-      const eventDate = parseISO(dateStr);
-      const isToday = differenceInDays(eventDate, new Date()) === 0;
-      
-      // 2. Weather
-      // If it's more than 14 days in the future, Open-Meteo might not have forecast. 
-      // But we can try the 16-day forecast.
-      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&current_weather=true&timezone=auto`);
-      const weatherData = await weatherRes.json();
-      console.log('Open-Meteo response:', weatherData);
-
-      // Find the specific day in the daily forecast
-      const targetDateStr = format(eventDate, 'yyyy-MM-dd');
-      const dayIndex = weatherData.daily.time.indexOf(targetDateStr);
-
-      if (dayIndex !== -1) {
-        setWeather({
-          temp: Math.round(weatherData.daily.temperature_2m_max[dayIndex]),
-          tempMin: Math.round(weatherData.daily.temperature_2m_min[dayIndex]),
-          code: weatherData.daily.weathercode[dayIndex],
-          rainProb: weatherData.daily.precipitation_probability_max[dayIndex],
-          current: isToday ? Math.round(weatherData.current_weather.temperature) : null
-        });
-      } else {
-        // Fallback or past date
-        setWeather(null);
-      }
+      const weatherData = await fetchWeather(location, dateStr);
+      console.log('weatherData result:', weatherData);
+      setWeather(weatherData);
     } catch (e) {
       console.error('Weather fetch error:', e);
       setWeather(null);
@@ -106,14 +82,14 @@ export default function EventDetails() {
   };
 
   const getWeatherInfo = (code: number) => {
-    // WMO codes mapping
-    if (code === 0) return { label: 'Klarer Himmel', icon: Sun, color: 'text-amber-400' };
-    if ([1, 2, 3].includes(code)) return { label: 'Leicht bewölkt', icon: Cloud, color: 'text-blue-300' };
-    if ([45, 48].includes(code)) return { label: 'Nebel', icon: Cloud, color: 'text-gray-400' };
-    if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { label: 'Regen', icon: CloudRain, color: 'text-blue-400' };
-    if ([71, 73, 75, 77, 85, 86].includes(code)) return { label: 'Schnee', icon: Cloud, color: 'text-white' };
-    if ([95, 96, 99].includes(code)) return { label: 'Gewitter', icon: Zap, color: 'text-amber-500' };
-    return { label: 'Unbekannt', icon: Cloud, color: 'text-white/40' };
+    const label = getWeatherLabel(code);
+    if (label === 'Klarer Himmel') return { label, icon: Sun, color: 'text-amber-400' };
+    if (label === 'Leicht bewölkt') return { label, icon: Cloud, color: 'text-blue-300' };
+    if (label === 'Nebel') return { label, icon: Cloud, color: 'text-gray-400' };
+    if (label === 'Regen') return { label, icon: CloudRain, color: 'text-blue-400' };
+    if (label === 'Schnee') return { label, icon: Cloud, color: 'text-white' };
+    if (label === 'Gewitter') return { label, icon: Zap, color: 'text-amber-500' };
+    return { label, icon: Cloud, color: 'text-white/40' };
   };
 
   const fetchMessages = async () => {
@@ -287,17 +263,6 @@ export default function EventDetails() {
       const res = await fetch(`/api/admin/events/${id}/invites/${inviteId}/resend`, { method: 'POST' });
       if (!res.ok) throw new Error('Fehler beim erneuten Senden');
       toast.success('Einladung erneut gesendet');
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const handleRemindPending = async () => {
-    try {
-      const res = await fetch(`/api/admin/events/${id}/remind-pending`, { method: 'POST' });
-      if (!res.ok) throw new Error('Fehler beim Senden der Erinnerungen');
-      const data = await res.json();
-      toast.success(`${data.count} Erinnerungen gesendet!`);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -739,71 +704,78 @@ export default function EventDetails() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
               {/* Main Content: Invites List */}
               <div className="lg:col-span-2 space-y-10">
-          <div className="bg-surface-muted rounded-2xl border border-white/5 overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/[0.02]">
-              <div className="space-y-0.5">
-                <h2 className="text-lg font-bold text-white flex items-center gap-3 tracking-tight">
+          <div className="bg-surface-muted rounded-[3rem] border border-white/5 overflow-hidden shadow-2xl">
+            <div className="p-8 sm:p-10 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white/[0.02]">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-serif font-bold text-white flex items-center gap-3 tracking-tighter">
                   Teilnehmer
-                  <div className="px-2 py-0.5 bg-white/5 rounded-md text-[10px] font-bold text-white/50 border border-white/5">
+                  <div className="px-3 py-1 bg-white/5 rounded-full text-xs font-bold text-white/30 border border-white/5">
                     {invites.length}
                   </div>
                 </h2>
-                <p className="text-white/40 text-[10px] font-medium tracking-wide">Status aller Einladungen</p>
+                <p className="text-white/30 text-xs font-medium tracking-tight">Status aller versendeten Einladungen</p>
               </div>
-              <div className="w-full sm:w-auto flex gap-2">
-                <button 
-                  onClick={handleRemindPending}
-                  disabled={stats.pending === 0}
-                  className="w-full sm:w-auto border border-white/10 rounded-md text-[9px] font-bold px-4 py-2 bg-white/5 hover:bg-white/10 text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed uppercase tracking-widest"
-                >
-                  Erinnern ({stats.pending})
-                </button>
+              <div className="w-full sm:w-auto">
                 <select 
                   value={filter} 
                   onChange={e => setFilter(e.target.value)}
-                  className="w-full sm:w-auto border border-white/10 rounded-md text-[9px] font-bold px-4 py-2 bg-black text-white outline-none focus:ring-1 focus:ring-white/20 transition-all cursor-pointer uppercase tracking-widest"
+                  className="w-full sm:w-auto border border-white/10 rounded-2xl text-[10px] font-black px-6 py-3 bg-black text-white outline-none focus:ring-2 focus:ring-white/10 transition-all cursor-pointer uppercase tracking-[0.2em] shadow-xl"
                 >
-                  <option value="all">Alle</option>
+                  <option value="all">Alle anzeigen</option>
                   <option value="yes">Zusagen</option>
                   <option value="maybe">Vielleicht</option>
                   <option value="no">Absagen</option>
-                  <option value="pending">Offen</option>
+                  <option value="pending">Noch offen</option>
                 </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const csvData = formatInviteesForCSV(invites);
+                    downloadCSV(csvData, `${aktion?.title || 'Event'}_Teilnehmer`, ['Name', 'Status', 'Gäste', 'Antwort_Datum', 'Erstellt_Am', 'Link']);
+                    toast.success('Teilnehmerliste exportiert');
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                  title="Teilnehmerliste als CSV exportieren"
+                >
+                  <Download className="w-4 h-4" /> Export
+                </button>
               </div>
             </div>
 
             <div className="divide-y divide-white/5 px-2">
               {filteredInvitees.length > 0 ? (
                 filteredInvitees.map((invitee: any) => (
-                  <div key={invitee.id} className="p-4 hover:bg-white/[0.02] transition-all rounded-lg my-1">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 font-bold text-sm border ${
-                          invitee.status === 'yes' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/10' :
-                          invitee.status === 'no' ? 'bg-red-500/10 text-red-400 border-red-500/10' :
-                          invitee.status === 'maybe' ? 'bg-amber-500/10 text-amber-400 border-amber-500/10' :
-                          'bg-white/5 text-white/30 border-white/5'
+                  <div key={invitee.id} className="p-6 hover:bg-white/[0.03] transition-all group rounded-2xl mx-2 my-1">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                      <div className="flex items-center gap-5">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 font-serif text-xl font-bold shadow-2xl relative overflow-hidden ${
+                          invitee.status === 'yes' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' :
+                          invitee.status === 'no' ? 'bg-red-500/10 text-red-400 border border-red-500/10' :
+                          invitee.status === 'maybe' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/10' :
+                          'bg-white/5 text-white/20 border border-white/5'
                         }`}>
-                          {(invitee.name_snapshot || invitee.current_name || '?').charAt(0).toUpperCase()}
+                          <div className="relative z-10">{(invitee.name_snapshot || invitee.current_name || '?').charAt(0).toUpperCase()}</div>
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
                         </div>
-                        <div className="space-y-0.5">
-                          <div className="text-sm text-white flex items-center gap-2 font-semibold">
+                        <div className="space-y-1.5">
+                          <div className="font-serif text-xl text-white flex items-center gap-3 tracking-tight font-bold">
                             {invitee.name_snapshot || invitee.current_name}
                             {invitee.guests_count > 0 && (
-                              <div className="text-[9px] bg-white text-black px-1.5 py-0 rounded font-black tracking-wider">
+                              <div className="text-[10px] bg-white text-black px-2 py-0.5 rounded-lg font-black tracking-widest shadow-xl">
                                 +{invitee.guests_count}
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-3">
                             <select 
                               value={invitee.status} 
                               onChange={(e) => handleUpdateStatus(invitee.id, e.target.value)}
-                              className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-transparent transition-all cursor-pointer outline-none ${
-                                  invitee.status === 'yes' ? 'text-emerald-400 border-emerald-500/20' :
-                                  invitee.status === 'no' ? 'text-red-400 border-red-500/20' :
-                                  invitee.status === 'maybe' ? 'text-amber-400 border-amber-500/20' :
-                                  'text-white/30 border-white/5'
+                              className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl bg-black border transition-all cursor-pointer outline-none shadow-lg ${
+                                invitee.status === 'yes' ? 'text-emerald-400 border-emerald-500/20' :
+                                invitee.status === 'no' ? 'text-red-400 border-red-500/20' :
+                                invitee.status === 'maybe' ? 'text-amber-400 border-amber-500/20' :
+                                'text-white/20 border-white/5'
                               }`}
                             >
                               <option value="pending">Offen</option>
@@ -1212,7 +1184,7 @@ export default function EventDetails() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto border border-white/5 rounded-[2.5rem] divide-y divide-white/5 mb-10 bg-white/[0.02] shadow-inner pb-20">
+            <div className="flex-1 overflow-y-auto border border-white/5 rounded-[2.5rem] divide-y divide-white/5 mb-10 bg-white/[0.02] shadow-inner">
               {availablePersons.map(p => (
                 <label key={p.id} className="flex items-center gap-6 p-6 hover:bg-white/[0.05] cursor-pointer transition-all group relative active:bg-white/[0.08]">
                   <div className="relative flex items-center justify-center">
@@ -1247,7 +1219,7 @@ export default function EventDetails() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 shrink-0 mt-auto">
+            <div className="flex flex-col sm:flex-row gap-4">
               <button onClick={() => setShowBulkInviteModal(false)} className="w-full sm:flex-1 h-16 border border-white/10 text-white rounded-2xl font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest active:scale-95">Abbrechen</button>
               <button 
                 onClick={handleBulkInvite} 

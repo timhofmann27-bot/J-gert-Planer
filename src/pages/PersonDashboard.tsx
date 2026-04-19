@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight, AlertCircle, Train, Settings, ChevronDown, Upload } from 'lucide-react';
-import { format, parseISO, differenceInSeconds } from 'date-fns';
+import { Calendar, MapPin, CheckCircle, XCircle, HelpCircle, LogOut, User, Clock, ChevronRight, AlertCircle, Train, Settings, ChevronDown, Upload, Sun, Moon, Cloud, CloudRain, TrendingUp, BarChart3, Award, Target, Sparkles, Zap, Compass, Trophy, Megaphone } from 'lucide-react';
+import { format, parseISO, differenceInSeconds, getHours, isAfter, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import NotificationsMenu from '../components/NotificationsMenu';
 import TransitPlanner from '../components/TransitPlanner';
+import Avatar from '../components/Avatar';
 
 function Countdown({ deadline }: { deadline: string }) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -134,134 +135,324 @@ export default function PersonDashboard() {
   const pending = upcoming.filter(i => i.status === 'pending');
   const responded = upcoming.filter(i => i.status !== 'pending');
 
-  return (
-    <div className="min-h-screen bg-surface text-white selection:bg-white/20">
-      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-2xl border-b border-white/5 pt-safe">
-        <div className="max-w-[1920px] mx-auto px-6 sm:px-12 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            {isAdmin ? (
-              <Link 
-                to="/" 
-                className="w-12 h-12 bg-white text-black rounded-[1.2rem] flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(255,255,255,0.1)] relative overflow-hidden group hover:scale-105 active:scale-95 transition-all"
-                title="Zurück zum Admin-Dashboard"
-              >
-                <Calendar className="w-6 h-6 relative z-10 group-hover:rotate-12 transition-transform" />
-              </Link>
-            ) : (
-              <div className="w-12 h-12 bg-surface-elevated text-white rounded-[1.2rem] flex items-center justify-center border border-white/10 shadow-2xl relative overflow-hidden group">
-                <User className="w-6 h-6 relative z-10" />
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Willkommen</span>
-              <span className="font-display text-2xl font-medium text-white tracking-tighter leading-none mt-1">{user?.name}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {isAdmin && (
-              <Link 
-                to="/" 
-                className="hidden sm:flex items-center gap-2 text-[10px] text-white/40 hover:text-white transition-all font-black uppercase tracking-widest bg-white/5 px-6 py-3 rounded-2xl border border-white/5"
-              >
-                Verwaltung
-              </Link>
-            )}
-            <NotificationsMenu apiPrefix="/api/public" />
-            
-            <div className="relative">
-              <button 
-                onClick={() => setShowSettings(!showSettings)}
-                className="flex items-center gap-2 bg-white/5 text-white hover:bg-white/10 rounded-2xl border border-white/5 p-1 transition-all"
-              >
-                <div className="w-9 h-9 rounded-xl overflow-hidden bg-white/10 flex items-center justify-center">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-5 h-5 text-white/50" />
-                  )}
-                </div>
-                <ChevronDown className={`w-4 h-4 mr-2 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
-              </button>
-              
-              <AnimatePresence>
-                {showSettings && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full right-0 mt-3 w-80 glass p-6 rounded-3xl border border-white/5 z-50"
-                  >
-                    <div className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-6">Profil bearbeiten</div>
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      const target = e.target as any;
-                      try {
-                        const res = await fetch('/api/public/profile', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ 
-                            username: target.username.value,
-                            name: target.name.value,
-                            avatar_url: avatarUrl,
-                            currentPassword: target.currentPassword.value || null,
-                            newPassword: target.newPassword.value || null
-                          })
-                        });
-                        if (!res.ok) {
-                          const data = await res.json();
-                          throw new Error(data.error);
-                        }
-                        toast.success('Profil aktualisiert');
-                        target.currentPassword.value = '';
-                        target.newPassword.value = '';
-                        setShowSettings(false);
-                      } catch (e: any) {
-                        toast.error(e.message || 'Fehler beim Aktualisieren');
-                      }
-                    }} className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-white/20 uppercase tracking-widest pl-1">Profilbild</label>
-                        <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileChange} />
-                        <button 
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full flex items-center gap-3 bg-black/40 border border-white/5 rounded-xl p-3 text-white/50 text-sm hover:text-white transition-all"
-                        >
-                          <Upload className="w-4 h-4" />
-                          Bild aus Galerie auswählen
-                        </button>
-                        {avatarUrl && <img src={avatarUrl} alt="Vorschau" className="w-16 h-16 rounded-xl mt-2 object-cover border border-white/10" />}
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-white/20 uppercase tracking-widest pl-1">Benutzername</label>
-                        <input name="username" defaultValue={user?.username} className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-white text-sm" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-white/20 uppercase tracking-widest pl-1">Name</label>
-                        <input name="name" defaultValue={user?.name} className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-white text-sm" />
-                      </div>
-                      <div className="pt-2 border-t border-white/5">
-                        <input name="currentPassword" type="password" placeholder="Aktuelles Passwort" className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-white text-sm mb-2" />
-                        <input name="newPassword" type="password" placeholder="Neues Passwort" className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-white text-sm" />
-                      </div>
-                      <button type="submit" className="w-full bg-white text-black font-black py-3 rounded-xl hover:bg-white/90 transition-all uppercase tracking-widest text-[10px]">Speichern</button>
-                    </form>
-                    <button 
-                      onClick={handleLogout}
-                      className="w-full mt-6 flex items-center justify-center gap-2 text-rose-400/60 hover:text-rose-400 transition-all text-[10px] uppercase font-black"
-                    >
-                      <LogOut className="w-3 h-3" /> Abmelden
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-      </header>
+  // Personal stats calculation
+  const totalInvited = invitations.length;
+  const totalYes = invitations.filter(i => i.status === 'yes').length;
+  const totalNo = invitations.filter(i => i.status === 'no').length;
+  const totalMaybe = invitations.filter(i => i.status === 'maybe').length;
+  const participationRate = totalInvited > 0 ? Math.round((totalYes / totalInvited) * 100) : 0;
+  const pastYes = past.filter(i => i.status === 'yes').length;
+  const pastTotal = past.length;
+  const pastParticipationRate = pastTotal > 0 ? Math.round((pastYes / pastTotal) * 100) : 0;
 
-      <main className="max-w-[1920px] mx-auto px-6 sm:px-12 py-12 pb-32 lg:pb-12 space-y-32">
+  // Event type breakdown
+  const eventTypeBreakdown: Record<string, number> = {};
+  invitations.forEach(inv => {
+    const type = inv.event_type || 'Event';
+    eventTypeBreakdown[type] = (eventTypeBreakdown[type] || 0) + (inv.status === 'yes' ? 1 : 0);
+  });
+  const favoriteType = Object.entries(eventTypeBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+
+  // Streak calculation (consecutive events attended)
+  const sortedPast = [...past].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  let streak = 0;
+  for (const inv of sortedPast) {
+    if (inv.status === 'yes') streak++;
+    else break;
+  }
+
+  // Smart suggestions logic
+  const suggestions: { icon: React.ElementType; title: string; message: string; action?: string; link?: string; variant: 'default' | 'highlight' }[] = [];
+
+  // Suggestion 1: Pending invitations urgency
+  if (pending.length > 0) {
+    const urgent = pending.filter(p => p.response_deadline && isAfter(new Date(), addDays(parseISO(p.response_deadline), -1)));
+    if (urgent.length > 0) {
+      suggestions.push({
+        icon: AlertCircle,
+        title: 'Frist läuft bald ab',
+        message: `${urgent.length} Einladung${urgent.length > 1 ? 'en' : ''} brauchen deine Antwort.`,
+        action: 'Jetzt antworten',
+        link: `/invite/${urgent[0].token}`,
+        variant: 'highlight'
+      });
+    } else {
+      suggestions.push({
+        icon: Sparkles,
+        title: 'Neue Einladung wartet',
+        message: `Du hast ${pending.length} offen${pending.length > 1 ? 'e' : 'en'} Einladung${pending.length > 1 ? 'en' : ''}.`,
+        action: 'Ansehen',
+        link: `/invite/${pending[0].token}`,
+        variant: 'default'
+      });
+    }
+  }
+
+  // Suggestion 2: Based on favorite event type
+  if (favoriteType && favoriteType !== '-') {
+    const typeIcons: Record<string, React.ElementType> = {
+      wanderung: Compass,
+      sport: Trophy,
+      demo: Megaphone,
+      event: Calendar,
+    };
+    const TypeIcon = typeIcons[favoriteType.toLowerCase()] || Calendar;
+    const upcomingOfType = upcoming.filter(u => (u.event_type || 'Event').toLowerCase() === favoriteType.toLowerCase());
+    if (upcomingOfType.length > 0) {
+      suggestions.push({
+        icon: TypeIcon,
+        title: `Mehr ${favoriteType}?`,
+        message: `Du magst ${favoriteType} – ${upcomingOfType.length} weitere${upcomingOfType.length > 1 ? '' : 'r'} ${favoriteType} steht${upcomingOfType.length > 1 ? 'en' : ''} an.`,
+        action: 'Anzeigen',
+        variant: 'default'
+      });
+    }
+  }
+
+  // Suggestion 3: Low participation encouragement
+  if (participationRate < 50 && totalInvited >= 3) {
+    suggestions.push({
+      icon: Zap,
+      title: 'Werde aktiver!',
+      message: `Du hast bisher ${participationRate}% zugesagt. Jedes Event zählt!`,
+      variant: 'default'
+    });
+  }
+
+  // Suggestion 4: Streak celebration
+  if (streak >= 3) {
+    suggestions.push({
+      icon: Award,
+      title: 'Super Serie! 🔥',
+      message: `${streak} Events in Folge – weiter so!`,
+      variant: 'highlight'
+    });
+  }
+
+  // Suggestion 5: Upcoming event with transport
+  const nextEvent = upcoming.find(u => u.status === 'yes' && u.location);
+  if (nextEvent) {
+    suggestions.push({
+      icon: Train,
+      title: 'Route planen?',
+      message: `"${nextEvent.title}" – plane jetzt deine Anreise.`,
+      action: 'Route planen',
+      variant: 'default'
+    });
+  }
+
+  const getGreeting = () => {
+    const hour = getHours(new Date());
+    if (hour < 6) return 'Gute Nacht';
+    if (hour < 12) return 'Guten Morgen';
+    if (hour < 18) return 'Guten Tag';
+    return 'Guten Abend';
+  };
+
+  const getGreetingIcon = () => {
+    const hour = getHours(new Date());
+    if (hour < 6) return Moon;
+    if (hour < 12) return Sun;
+    if (hour < 18) return Sun;
+    return Cloud;
+  };
+
+  const GreetingIcon = getGreetingIcon();
+
+  return (
+    <div className="space-y-32">
+        {/* Personalized Greeting */}
+        <section className="pb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-6 mb-4"
+          >
+            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-white/40">
+              <GreetingIcon className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white tracking-tighter">
+                {getGreeting()}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+              </h1>
+              <p className="text-white/30 text-sm mt-1">Willkommen zurück auf deinem Dashboard.</p>
+            </div>
+          </motion.div>
+        </section>
+
+        {/* Smart Suggestions */}
+        {suggestions.length > 0 && (
+          <section>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="flex items-center gap-4 mb-6"
+            >
+              <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-amber-400/60">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h2 className="text-xl font-serif font-bold text-white tracking-tighter">Für dich</h2>
+            </motion.div>
+
+            <div className="space-y-3">
+              {suggestions.slice(0, 3).map((s, i) => {
+                const Icon = s.icon;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
+                  >
+                    {s.link ? (
+                      <Link
+                        to={s.link}
+                        className={`flex items-center gap-5 p-5 rounded-2xl border transition-all group active:scale-[0.98] ${
+                          s.variant === 'highlight'
+                            ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10'
+                            : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          s.variant === 'highlight'
+                            ? 'bg-amber-500/10 text-amber-400'
+                            : 'bg-white/5 text-white/30'
+                        }`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-white mb-0.5">{s.title}</div>
+                          <div className="text-xs text-white/40">{s.message}</div>
+                        </div>
+                        {s.action && (
+                          <div className="text-[10px] font-black text-white/30 uppercase tracking-widest group-hover:text-white transition-colors shrink-0">
+                            {s.action}
+                          </div>
+                        )}
+                      </Link>
+                    ) : (
+                      <div
+                        className={`flex items-center gap-5 p-5 rounded-2xl border ${
+                          s.variant === 'highlight'
+                            ? 'bg-amber-500/5 border-amber-500/20'
+                            : 'bg-white/[0.02] border-white/5'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          s.variant === 'highlight'
+                            ? 'bg-amber-500/10 text-amber-400'
+                            : 'bg-white/5 text-white/30'
+                        }`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-white mb-0.5">{s.title}</div>
+                          <div className="text-xs text-white/40">{s.message}</div>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Personal Stats Section */}
+        <section>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-4 mb-8"
+          >
+            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white/40">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-white tracking-tighter">Deine Übersicht</h2>
+          </motion.div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {/* Participation Rate */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-surface-muted p-6 rounded-[2rem] border border-white/5 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Teilnahmequote</span>
+                <Target className="w-4 h-4 text-white/10" />
+              </div>
+              <div className="text-4xl font-serif font-bold text-white tracking-tighter">{participationRate}%</div>
+              <div className="h-1.5 w-full bg-white/5 rounded-full mt-4 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${participationRate}%` }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                  className="h-full bg-emerald-500 rounded-full"
+                />
+              </div>
+              <div className="text-[9px] text-white/20 mt-2 font-bold uppercase tracking-widest">
+                {totalYes} von {totalInvited} Events
+              </div>
+            </motion.div>
+
+            {/* Streak */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-surface-muted p-6 rounded-[2rem] border border-white/5 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Aktuelle Serie</span>
+                <Award className="w-4 h-4 text-white/10" />
+              </div>
+              <div className="text-4xl font-serif font-bold text-white tracking-tighter">{streak}</div>
+              <div className="text-[9px] text-white/20 mt-2 font-bold uppercase tracking-widest">
+                {streak === 0 ? 'Keine Serie' : streak === 1 ? 'Event in Folge' : 'Events in Folge'}
+              </div>
+            </motion.div>
+
+            {/* Favorite Type */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="bg-surface-muted p-6 rounded-[2rem] border border-white/5 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Lieblingstyp</span>
+                <TrendingUp className="w-4 h-4 text-white/10" />
+              </div>
+              <div className="text-2xl font-serif font-bold text-white tracking-tighter capitalize">{favoriteType}</div>
+              <div className="text-[9px] text-white/20 mt-2 font-bold uppercase tracking-widest">
+                Am häufigsten dabei
+              </div>
+            </motion.div>
+
+            {/* Past Participation */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="bg-surface-muted p-6 rounded-[2rem] border border-white/5 shadow-xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Vergangen</span>
+                <Calendar className="w-4 h-4 text-white/10" />
+              </div>
+              <div className="text-4xl font-serif font-bold text-white tracking-tighter">{pastParticipationRate}%</div>
+              <div className="text-[9px] text-white/20 mt-2 font-bold uppercase tracking-widest">
+                {pastYes} von {pastTotal} besucht
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
         {/* Offene Einladungen */}
         {pending.length > 0 && (
           <section>
@@ -455,8 +646,6 @@ export default function PersonDashboard() {
             </AnimatePresence>
           </section>
         )}
-      </main>
-      
       <TransitPlanner 
         isOpen={transitAktion !== null}
         onClose={() => setTransitAktion(null)}
