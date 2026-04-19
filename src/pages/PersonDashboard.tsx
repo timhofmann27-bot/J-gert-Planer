@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import NotificationsMenu from '../components/NotificationsMenu';
 import TransitPlanner from '../components/TransitPlanner';
 import Avatar from '../components/Avatar';
+import { useTheme } from '../lib/theme';
 
 function Countdown({ deadline }: { deadline: string }) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -73,6 +74,7 @@ export default function PersonDashboard() {
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -262,22 +264,44 @@ export default function PersonDashboard() {
   return (
     <div className="space-y-32">
         {/* Personalized Greeting */}
-        <section className="pb-8">
+        <section className="pb-8 flex flex-wrap gap-6 items-start justify-between">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="flex items-center gap-6 mb-4"
           >
-            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-white/40">
+            <div className="w-14 h-14 bg-surface-elevated rounded-2xl flex items-center justify-center text-text-muted border border-border">
               <GreetingIcon className="w-7 h-7" />
             </div>
             <div>
-              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white tracking-tighter">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-text tracking-tighter">
                 {getGreeting()}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
               </h1>
-              <p className="text-white/30 text-sm mt-1">Willkommen zurück auf deinem Dashboard.</p>
+              <p className="text-text-dim text-sm mt-1">Willkommen zurück auf deinem Dashboard.</p>
             </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="flex items-center gap-3 bg-surface-muted p-1.5 rounded-3xl border border-border"
+          >
+            <button
+              onClick={toggleTheme}
+              className="w-10 h-10 flex items-center justify-center rounded-2xl bg-surface-elevated text-text-dim hover:text-text hover:bg-accent-muted transition-all active:scale-90"
+              title="Theme wechseln"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <div className="w-px h-6 bg-border" />
+            <button
+              onClick={handleLogout}
+              className="w-10 h-10 flex items-center justify-center rounded-2xl bg-surface-elevated text-text-dim hover:text-danger hover:bg-danger/10 hover:border-danger/20 border border-transparent transition-all active:scale-90"
+              title="Abmelden"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </motion.div>
         </section>
 

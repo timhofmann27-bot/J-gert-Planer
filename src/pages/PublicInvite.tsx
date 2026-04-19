@@ -422,12 +422,12 @@ export default function PublicInvite() {
   }
 
   return (
-    <div className="min-h-screen bg-black py-16 sm:py-32 px-6 relative">
+    <div className="min-h-screen bg-surface py-16 sm:py-32 px-6 relative">
       {isAdmin && (
         <div className="fixed top-8 left-8 z-50">
           <Link 
             to="/"
-            className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:scale-110 active:scale-95 transition-all group"
+            className="w-12 h-12 bg-surface-elevated text-text border border-border rounded-2xl flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all group"
             title="Zurück zur Admin-Übersicht"
           >
             <Calendar className="w-6 h-6 group-hover:rotate-12 transition-transform" />
@@ -442,8 +442,8 @@ export default function PublicInvite() {
           transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           className="relative"
         >
-          <div className="premium-card rounded-4xl p-10 sm:p-20 text-center relative z-10 flex flex-col items-center shadow-none border-white/[0.08]">
-            <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none" />
+          <div className="premium-card rounded-4xl p-10 sm:p-20 text-center relative z-10 flex flex-col items-center shadow-none border-border">
+            <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
             
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -451,55 +451,55 @@ export default function PublicInvite() {
               transition={{ delay: 0.3 }}
               className="flex items-center gap-4 mb-12"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
-              <span className="micro-label">{getEventLabel(aktion.type)}</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+              <span className="micro-label !text-accent/80">{getEventLabel(aktion.type)}</span>
             </motion.div>
 
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.4, duration: 1, ease: [0.16, 1, 0.3, 1] }}
-              className="w-24 h-24 bg-white text-black rounded-3xl flex items-center justify-center mb-12 shadow-[0_32px_64px_-16px_rgba(255,255,255,0.2)] ring-1 ring-white/20 active:scale-95 transition-transform"
+              className="w-24 h-24 bg-surface-elevated text-text rounded-3xl flex items-center justify-center mb-12 shadow-lg ring-1 ring-border active:scale-95 transition-transform"
             >
               {getEventIcon(aktion.type)}
             </motion.div>
 
-            <h1 className="text-6xl sm:text-8xl font-serif font-black text-white tracking-tighter leading-[0.85] mb-12">
+            <h1 className="text-6xl sm:text-8xl font-serif font-black text-text tracking-tighter leading-[0.85] mb-12">
               {aktion?.title}
             </h1>
 
-            <div className="h-px w-24 bg-white/10 mb-12" />
+            <div className="h-px w-24 bg-border mb-12" />
 
             <div className="space-y-6">
-              <h2 className="text-white/40 font-serif italic text-4xl sm:text-5xl tracking-[-0.04em] leading-none">
+              <h2 className="text-text/40 font-serif italic text-4xl sm:text-5xl tracking-[-0.04em] leading-none">
                 Grüß dich {invitee?.name_snapshot || invitee?.name},
               </h2>
-              <p className="text-white font-display font-medium text-2xl sm:text-3xl uppercase tracking-[0.2em] leading-[1.1] max-w-lg">
+              <p className="text-text font-display font-medium text-2xl sm:text-3xl uppercase tracking-[0.2em] leading-[1.1] max-w-lg">
                 Es ist an Zeit Stärke für <br />
-                <span className="text-white/50 italic font-serif lowercase tracking-tighter pr-3 text-3xl sm:text-4xl">die</span> 
+                <span className="text-text/50 italic font-serif lowercase tracking-tighter pr-3 text-3xl sm:text-4xl">die</span> 
                 Heimat zu zeigen.
               </p>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-16 w-full text-left mt-24">
               <div className="space-y-6">
-                <span className="micro-label">Zeitplan</span>
+                <span className="micro-label !text-text/50">Zeitplan</span>
                 <div className="space-y-2">
-                  <div className="text-white font-serif text-3xl font-bold tracking-tight leading-none group-hover:text-white/80 transition-colors cursor-default">
+                  <div className="text-text font-serif text-3xl font-bold tracking-tight leading-none group-hover:text-text/80 transition-colors cursor-default">
                     {aktion?.date ? format(parseISO(aktion.date), 'EEEE, dd. MMM', { locale: de }) : '-'}
                   </div>
-                  <div className="text-white/30 text-xl font-medium italic">{aktion?.date ? format(parseISO(aktion.date), 'HH:mm', { locale: de }) : '-'} Uhr</div>
+                  <div className="text-text/50 text-xl font-medium italic">{aktion?.date ? format(parseISO(aktion.date), 'HH:mm', { locale: de }) : '-'} Uhr</div>
                 </div>
               </div>
               
               <div className="space-y-6">
-                <span className="micro-label">Standort</span>
+                <span className="micro-label !text-text/50">Standort</span>
                 <div className="space-y-3">
-                  <div className="text-white font-serif text-3xl font-bold tracking-tight leading-tight group-hover:text-white/80 transition-colors cursor-default">
+                  <div className="text-text font-serif text-3xl font-bold tracking-tight leading-tight group-hover:text-text/80 transition-colors cursor-default">
                     {aktion?.location}
                   </div>
                   {aktion?.meeting_point && (
-                    <div className="inline-block px-4 py-2 bg-white/5 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/30">
+                    <div className="inline-block px-4 py-2 bg-surface-elevated border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-text/50">
                       Treffpunkt: {aktion.meeting_point}
                     </div>
                   )}
@@ -513,20 +513,20 @@ export default function PublicInvite() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6 }}
-                  className="rounded-3xl overflow-hidden border border-white/10 shadow-2xl h-80 relative"
+                  className="rounded-3xl overflow-hidden border border-border shadow-2xl h-80 relative"
                 >
                   <MapComponent location={aktion.location} />
-                  <div className="absolute inset-0 bg-black/20 pointer-events-none group-hover:opacity-0 transition-opacity duration-700" />
-                  <div className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-wrap justify-end gap-3 z-20">
+                  <div className="absolute inset-0 bg-surface/10 pointer-events-none group-hover:opacity-0 transition-opacity duration-700" />
+                  <div className="absolute inset-x-0 bottom-0 p-8 flex flex-wrap justify-center sm:justify-end gap-3 z-20">
                     <button 
                       onClick={(e) => { e.stopPropagation(); setShowTransit(true); }}
-                      className="bg-white/10 hover:bg-white/20 backdrop-blur-3xl border border-white/20 px-6 py-3 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all active:scale-95 shadow-2xl"
+                      className="bg-surface-elevated/90 hover:bg-surface-elevated backdrop-blur-3xl border border-border px-6 py-3 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-text transition-all active:scale-95 shadow-lg"
                     >
                       <Train className="w-4 h-4" /> Route
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); generateVCalendar(aktion, window.location.href); }}
-                      className="bg-white text-black px-8 py-3 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-[0_20px_40px_rgba(255,255,255,0.2)]"
+                      className="bg-text text-surface px-8 py-3 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl hover:opacity-90"
                     >
                       <Calendar className="w-4 h-4" /> Exportieren
                     </button>
@@ -536,9 +536,9 @@ export default function PublicInvite() {
             )}
 
             {aktion?.description && (
-              <div className="w-full mt-24 text-left space-y-8 pt-20 border-t border-white/5 relative">
+              <div className="w-full mt-24 text-left space-y-8 pt-20 border-t border-border relative">
                  <span className="micro-label absolute top-10 left-0">Hinweise</span>
-                 <p className="text-white/50 text-2xl whitespace-pre-wrap leading-[1.4] font-medium tracking-tighter italic font-serif">
+                 <p className="text-text/60 text-2xl whitespace-pre-wrap leading-[1.4] font-medium tracking-tighter italic font-serif">
                    "{aktion.description}"
                  </p>
               </div>
@@ -556,16 +556,16 @@ export default function PublicInvite() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="glass rounded-3xl p-8 border border-white/5 relative overflow-hidden"
+            className="glass rounded-3xl p-8 border border-border relative overflow-hidden"
           >
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
             
             <form onSubmit={handleSubmit} className="relative z-10">
               <div className="flex items-center justify-between mb-16">
-                <h2 className="text-4xl font-serif font-bold text-white tracking-tighter">Rückmeldung</h2>
+                <h2 className="text-4xl font-serif font-bold text-text tracking-tighter">Rückmeldung</h2>
                 <div className="flex items-center gap-2">
-                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                   <span className="micro-label !text-emerald-500/60">Live Rückmeldung</span>
+                   <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                   <span className="micro-label !text-accent">Live Rückmeldung</span>
                 </div>
               </div>
               
@@ -577,9 +577,9 @@ export default function PublicInvite() {
 
               <div className={`grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16 ${isDeadlinePassed ? 'opacity-20 pointer-events-none grayscale' : ''}`}>
                 {[
-                  { id: 'yes', label: 'Einsatzbereit', icon: CheckCircle, color: 'emerald' },
-                  { id: 'no', label: 'Abwesend', icon: XCircle, color: 'rose' },
-                  { id: 'maybe', label: 'Unklar', icon: HelpCircle, color: 'amber' }
+                  { id: 'yes', label: 'Einsatzbereit', icon: CheckCircle, color: 'accent' },
+                  { id: 'no', label: 'Abwesend', icon: XCircle, color: 'surface' },
+                  { id: 'maybe', label: 'Unklar', icon: HelpCircle, color: 'surface' }
                 ].map((opt) => (
                   <motion.label 
                     key={opt.id}
@@ -588,14 +588,14 @@ export default function PublicInvite() {
                     className={`
                       cursor-pointer border rounded-3xl p-8 text-center transition-all relative overflow-hidden group
                       ${status === opt.id 
-                        ? `bg-white text-black border-white shadow-[0_24px_48px_rgba(255,255,255,0.2)]` 
-                        : 'bg-white/[0.02] border-white/5 hover:border-white/10'}
+                        ? `bg-accent text-surface border-accent shadow-[0_12px_32px_-12px_rgba(249,115,22,0.5)]` 
+                        : 'bg-surface-elevated border-border hover:border-border/50 hover:bg-surface-elevated/80'}
                     `}
                   >
                     <input type="radio" name="status" value={opt.id} className="sr-only" checked={status === opt.id} onChange={() => setStatus(opt.id)} disabled={isDeadlinePassed} />
                     <div className="relative z-10 flex flex-col items-center">
-                      <opt.icon className={`w-10 h-10 mb-4 transition-all duration-700 ${status === opt.id ? `text-black scale-110` : 'text-white/10 group-hover:text-white/30'}`} />
-                      <span className={`text-[10px] font-black uppercase tracking-[0.25em] transition-colors ${status === opt.id ? 'text-black' : 'text-white/20'}`}>
+                      <opt.icon className={`w-10 h-10 mb-4 transition-all duration-700 ${status === opt.id ? `text-surface scale-110` : 'text-text/30 group-hover:text-text/50'}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-[0.25em] transition-colors ${status === opt.id ? 'text-surface' : 'text-text/40'}`}>
                         {opt.label}
                       </span>
                     </div>
@@ -611,7 +611,7 @@ export default function PublicInvite() {
                     exit={{ opacity: 0, height: 0 }}
                     className={`mb-8 overflow-hidden ${isDeadlinePassed ? 'opacity-30' : ''}`}
                   >
-                    <label className="flex items-center gap-3 text-[9px] font-black text-white/20 uppercase tracking-[0.2em] mb-4 pl-1">
+                    <label className="flex items-center gap-3 text-[9px] font-black text-text/40 uppercase tracking-[0.2em] mb-4 pl-1">
                       <Users className="w-4 h-4" /> Gäste
                     </label>
                     <div className="grid grid-cols-5 gap-2">
@@ -623,8 +623,8 @@ export default function PublicInvite() {
                           disabled={isDeadlinePassed}
                           className={`py-4 rounded-xl font-black text-xs transition-all border ${
                             guestsCount === num 
-                            ? 'bg-white text-black border-white shadow-xl scale-105' 
-                            : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
+                            ? 'bg-accent text-surface border-accent shadow-xl scale-105' 
+                            : 'bg-surface-elevated text-text/50 border-border hover:border-border/50'
                           }`}
                         >
                           {num === 0 ? '0' : `+${num}`}
@@ -636,14 +636,14 @@ export default function PublicInvite() {
               </AnimatePresence>
 
               <div className={`mb-10 ${isDeadlinePassed ? 'opacity-30' : ''}`}>
-                <label className="block text-[9px] font-black text-white/20 uppercase tracking-[0.2em] mb-4 pl-1">
+                <label className="block text-[9px] font-black text-text/40 uppercase tracking-[0.2em] mb-4 pl-1">
                   Anmerkung
                 </label>
                 <textarea 
                   value={comment}
                   onChange={e => setComment(e.target.value)}
                   placeholder="Hast du noch etwas mitzuteilen?..."
-                  className="w-full bg-black/50 border border-white/5 rounded-2xl p-5 text-white/80 focus:outline-none focus:ring-1 focus:ring-white/10 transition-all font-medium placeholder:text-white/10 text-sm leading-relaxed min-h-[120px]"
+                  className="w-full bg-surface-elevated border border-border rounded-2xl p-5 text-text focus:outline-none focus:ring-1 focus:ring-accent transition-all font-medium placeholder:text-text/20 text-sm leading-relaxed min-h-[120px]"
                   disabled={isDeadlinePassed}
                 />
               </div>
@@ -653,7 +653,7 @@ export default function PublicInvite() {
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   type="submit"
-                  className="w-full bg-white text-black font-black py-5 rounded-2xl shadow-2xl text-[10px] uppercase tracking-[0.3em] transition-all hover:bg-white/90 active:scale-[0.98]"
+                  className="w-full bg-accent text-surface font-black py-5 rounded-2xl shadow-xl text-[10px] uppercase tracking-[0.3em] transition-all hover:bg-accent/90 active:scale-[0.98]"
                 >
                   Abstimmung senden
                 </motion.button>
@@ -668,18 +668,18 @@ export default function PublicInvite() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="bg-surface-muted rounded-[3.5rem] border border-white/5 p-10 sm:p-20 relative overflow-hidden"
+                className="bg-surface-muted rounded-[3.5rem] border border-border p-10 sm:p-20 relative overflow-hidden"
               >
                 <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
                 <div className="relative z-10">
                   <div className="flex justify-between items-center mb-10">
                     <div>
-                      <h2 className="text-4xl font-serif font-bold text-white mb-2 tracking-tighter">Mitbringliste</h2>
-                      <p className="text-white/30 font-medium text-lg tracking-tight">Wer bringt was mit?</p>
+                      <h2 className="text-4xl font-serif font-bold text-text mb-2 tracking-tighter">Mitbringliste</h2>
+                      <p className="text-text/30 font-medium text-lg tracking-tight">Wer bringt was mit?</p>
                     </div>
                     <button 
                       onClick={fetchUpdatedData}
-                      className="w-10 h-10 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 hover:text-white transition-all active:rotate-180 duration-500"
+                      className="w-10 h-10 bg-surface-elevated border border-border rounded-2xl flex items-center justify-center text-text/40 hover:text-text transition-all active:rotate-180 duration-500"
                       title="Aktualisieren"
                     >
                       <Repeat className="w-4 h-4" />
@@ -696,26 +696,26 @@ export default function PublicInvite() {
                           key={item.id} 
                           layout
                           className={`flex items-center justify-between p-6 sm:p-8 rounded-[2.2rem] border transition-all duration-500 ${
-                            isClaimedByMe ? 'bg-emerald-500/10 border-emerald-500/30' : 
-                            isClaimedByOther ? 'bg-white/[0.02] border-white/5 opacity-60' : 
-                            'bg-white/5 border-white/10'
+                            isClaimedByMe ? 'bg-accent/10 border-accent/30' : 
+                            isClaimedByOther ? 'bg-surface-elevated/40 border-border opacity-60' : 
+                            'bg-surface-elevated border-border'
                           }`}
                         >
                           <div className="flex flex-col gap-1 pr-4">
                             <span className={`text-xl font-serif font-bold tracking-tight transition-all ${
-                              item.claimer_person_id ? 'text-white/40' : 'text-white'
+                              item.claimer_person_id ? 'text-text/40' : 'text-text'
                             }`}>
                               {item.item_name}
                             </span>
-                            {item.notes && <span className="text-xs text-white/20 font-medium">{item.notes}</span>}
+                            {item.notes && <span className="text-xs text-text/40 font-medium">{item.notes}</span>}
                             
                             {isClaimedByOther && (
-                              <div className="flex items-center gap-2 text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-3">
+                              <div className="flex items-center gap-2 text-[9px] font-black text-text/30 uppercase tracking-[0.2em] mt-3">
                                 <User className="w-3 h-3" /> {item.claimer_name}
                               </div>
                             )}
                             {isClaimedByMe && (
-                              <div className="flex items-center gap-2 text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] mt-3">
+                              <div className="flex items-center gap-2 text-[9px] font-black text-accent uppercase tracking-[0.2em] mt-3">
                                 <CheckCircle className="w-3 h-3" /> Von dir übernommen
                               </div>
                             )}
@@ -725,22 +725,22 @@ export default function PublicInvite() {
                             {!item.claimer_person_id ? (
                               <button 
                                 onClick={() => handleClaimItem(item.id)}
-                                className="bg-white text-black px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-90 shadow-xl"
+                                className="bg-text text-surface px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-90 shadow-xl hover:opacity-90"
                               >
                                 Ich!
                               </button>
                             ) : isClaimedByMe ? (
                               <button 
                                 onClick={() => handleUnclaimItem(item.id)}
-                                className="w-12 h-12 bg-emerald-500 text-black rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-90 transition-all hover:bg-rose-500 hover:text-white group"
+                                className="w-12 h-12 bg-accent text-surface rounded-2xl flex items-center justify-center shadow-lg shadow-accent/20 active:scale-90 transition-all hover:bg-rose-500 hover:text-white group"
                                 title="Abgeben"
                               >
                                 <CheckCircle className="w-6 h-6 group-hover:hidden" />
                                 <XCircle className="w-6 h-6 hidden group-hover:block" />
                               </button>
                             ) : (
-                              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5">
-                                <Lock className="w-5 h-5 text-white/10" />
+                              <div className="w-12 h-12 bg-surface-elevated rounded-2xl flex items-center justify-center border border-border">
+                                <Lock className="w-5 h-5 text-text/20" />
                               </div>
                             )}
                           </div>
@@ -757,10 +757,10 @@ export default function PublicInvite() {
           {polls.length > 0 && (
             <div className="space-y-12">
               <div className="flex justify-between items-center px-10">
-                <h2 className="text-4xl font-serif font-bold text-white tracking-tighter">Abstimmungen</h2>
+                <h2 className="text-4xl font-serif font-bold text-text tracking-tighter">Abstimmungen</h2>
                 <button 
                   onClick={fetchUpdatedData}
-                  className="w-10 h-10 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 hover:text-white transition-all active:rotate-180 duration-500"
+                  className="w-10 h-10 bg-surface-elevated border border-border rounded-2xl flex items-center justify-center text-text/40 hover:text-text transition-all active:rotate-180 duration-500"
                   title="Aktualisieren"
                 >
                   <Repeat className="w-4 h-4" />
@@ -773,9 +773,9 @@ export default function PublicInvite() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
-                    className="bg-surface-muted rounded-[3rem] border border-white/5 p-10 relative overflow-hidden"
+                    className="bg-surface-muted rounded-[3rem] border border-border p-10 relative overflow-hidden"
                   >
-                    <h3 className="text-2xl font-serif font-bold text-white mb-8 tracking-tighter">{poll.question}</h3>
+                    <h3 className="text-2xl font-serif font-bold text-text mb-8 tracking-tighter">{poll.question}</h3>
                     <div className="space-y-4">
                       {poll.options.map((opt: any) => {
                         const hasVoted = opt.votes.some((v: any) => v.id === invitee.person_id);
@@ -786,19 +786,19 @@ export default function PublicInvite() {
                           <button 
                             key={opt.id}
                             onClick={() => handleVote(poll.id, opt.id)}
-                            className={`w-full relative h-16 rounded-2xl overflow-hidden border transition-all text-left ${hasVoted ? 'border-white/20 bg-white/5' : 'border-white/5 bg-black/40 hover:bg-black/60'}`}
+                            className={`w-full relative h-16 rounded-2xl overflow-hidden border transition-all text-left ${hasVoted ? 'border-accent bg-accent/5' : 'border-border bg-surface-elevated hover:bg-surface-elevated/80'}`}
                           >
                             <motion.div 
                               initial={{ width: 0 }}
                               animate={{ width: `${percent}%` }}
                               transition={{ duration: 1, ease: "easeOut" }}
-                              className="absolute inset-y-0 left-0 bg-white/[0.03]"
+                              className="absolute inset-y-0 left-0 bg-accent/10"
                             />
                             <div className="relative h-full flex items-center justify-between px-6">
-                              <span className={`text-sm font-bold tracking-widest uppercase transition-colors ${hasVoted ? 'text-white' : 'text-white/40'}`}>{opt.option_text}</span>
+                              <span className={`text-sm font-bold tracking-widest uppercase transition-colors ${hasVoted ? 'text-accent' : 'text-text/60'}`}>{opt.option_text}</span>
                               <div className="flex items-center gap-4">
-                                {hasVoted && <CheckCircle className="w-4 h-4 text-white" />}
-                                <span className="text-[10px] font-black text-white/20">{opt.vote_count}</span>
+                                {hasVoted && <CheckCircle className="w-4 h-4 text-accent" />}
+                                <span className="text-[10px] font-black text-text/40">{opt.vote_count}</span>
                               </div>
                             </div>
                           </button>
@@ -812,25 +812,25 @@ export default function PublicInvite() {
           )}
 
           {/* Message Board */}
-          <div className="premium-card rounded-4xl p-10 sm:p-20 relative overflow-hidden mt-12 border-white/[0.08] shadow-none">
+          <div className="premium-card rounded-4xl p-10 sm:p-20 relative overflow-hidden mt-12 border-border shadow-none">
             <div className="flex justify-between items-center mb-16">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                   <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                   <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
                    <span className="micro-label uppercase tracking-[0.3em]">Kommunikationsbereich</span>
                 </div>
-                <h2 className="text-4xl sm:text-6xl font-serif font-black text-white tracking-tighter leading-none">Pinnwand</h2>
-                <p className="text-white/30 font-medium text-lg leading-tight tracking-tight italic">Echte Gespräche, keine Filter.</p>
+                <h2 className="text-4xl sm:text-6xl font-serif font-black text-text tracking-tighter leading-none">Pinnwand</h2>
+                <p className="text-text/30 font-medium text-lg leading-tight tracking-tight italic">Echte Gespräche, keine Filter.</p>
               </div>
-              <div className="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center text-white/10 group-hover:text-white/20 transition-colors">
+              <div className="w-16 h-16 bg-surface-elevated rounded-3xl flex items-center justify-center text-text/10 group-hover:text-text/20 transition-colors">
                  <MessageSquare className="w-8 h-8" />
               </div>
             </div>
 
             <div className="space-y-10 mb-16">
               {messages.length === 0 ? (
-                <div className="text-center py-24 px-4 bg-white/[0.01] rounded-4xl border border-white/5 border-dashed">
-                   <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.5em]">System bereit. Warten auf Signale...</p>
+                <div className="text-center py-24 px-4 bg-surface-elevated/10 rounded-4xl border border-border border-dashed">
+                   <p className="text-text/20 text-[10px] font-black uppercase tracking-[0.5em]">System bereit. Warten auf Signale...</p>
                 </div>
               ) : (
                 messages.map((msg, i) => (
@@ -839,34 +839,34 @@ export default function PublicInvite() {
                     initial={{ opacity: 0, scale: 0.98 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     transition={{ delay: i * 0.05 }}
-                    className={`p-10 rounded-4xl border relative group transition-all duration-500 ${msg.is_admin ? 'bg-white text-black border-white shadow-[0_32px_64px_-16px_rgba(255,255,255,0.1)]' : 'bg-white/[0.02] border-white/[0.05] hover:border-white/10'}`}
+                    className={`p-10 rounded-4xl border relative group transition-all duration-500 ${msg.is_admin ? 'bg-accent/10 border-accent/20' : 'bg-surface-elevated border-border hover:border-border/50'}`}
                   >
                     <div className="flex justify-between items-start mb-6">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-3">
-                          <span className={`font-serif font-black text-2xl tracking-tighter leading-none ${msg.is_admin ? 'text-black' : 'text-white'}`}>
+                          <span className={`font-serif font-black text-2xl tracking-tighter leading-none ${msg.is_admin ? 'text-accent' : 'text-text'}`}>
                             {msg.is_admin ? (aktion?.title || 'Einsatzleitung') : msg.person_name}
                           </span>
                           {msg.is_admin && (
-                            <div className="bg-black/10 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest">
+                            <div className="bg-accent/20 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest text-accent">
                                ORGA
                             </div>
                           )}
                         </div>
-                        <span className={`micro-label !text-[9px] ${msg.is_admin ? 'text-black/30' : 'text-white/20'}`}>
+                        <span className={`micro-label !text-[9px] ${msg.is_admin ? 'text-accent/50' : 'text-text/40'}`}>
                           {format(parseISO(msg.created_at), 'dd.MM • HH:mm')}
                         </span>
                       </div>
                       {msg.person_id === invitee.person_id && (
                         <button 
                           onClick={() => handleDeleteMessage(msg.id)} 
-                          className={`transition-colors p-2 rounded-xl h-10 w-10 flex items-center justify-center ${msg.is_admin ? 'hover:bg-black/5 text-black/20 hover:text-red-600' : 'hover:bg-white/5 text-white/10 hover:text-red-400'}`}
+                          className={`transition-colors p-2 rounded-xl h-10 w-10 flex items-center justify-center ${msg.is_admin ? 'hover:bg-accent/10 text-accent/50 hover:text-red-500' : 'hover:bg-surface-elevated/50 text-text/30 hover:text-red-400'}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </div>
-                    <p className={`text-xl font-medium leading-relaxed whitespace-pre-wrap tracking-tight italic font-serif ${msg.is_admin ? 'text-black/80' : 'text-white/60'}`}>
+                    <p className={`text-xl font-medium leading-relaxed whitespace-pre-wrap tracking-tight italic font-serif ${msg.is_admin ? 'text-accent/80' : 'text-text/70'}`}>
                       "{msg.message}"
                     </p>
                   </motion.div>
@@ -880,21 +880,21 @@ export default function PublicInvite() {
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
                   placeholder="Deine Nachricht an den Hub..."
-                  className="w-full bg-black/40 border border-white/5 rounded-[2.5rem] p-10 pr-24 text-white text-xl font-serif italic placeholder:text-white/10 outline-none focus:border-white/[0.08] transition-all resize-none h-48 focus:bg-black/60 shadow-inner"
+                  className="w-full bg-surface-elevated border border-border rounded-[2.5rem] p-10 pr-24 text-text text-xl font-serif italic placeholder:text-text/20 outline-none focus:border-border/80 transition-all resize-none h-48 focus:bg-surface-elevated/80 shadow-inner"
                 />
                 <motion.button 
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   type="submit" 
                   disabled={!newMessage.trim()}
-                  className="absolute bottom-8 right-8 w-16 h-16 bg-white text-black rounded-[1.8rem] flex items-center justify-center disabled:opacity-0 disabled:scale-90 transition-all shadow-[0_20px_40px_rgba(255,255,255,0.2)]"
+                  className="absolute bottom-8 right-8 w-16 h-16 bg-text text-surface rounded-[1.8rem] flex items-center justify-center disabled:opacity-0 disabled:scale-90 transition-all shadow-xl"
                 >
                   <Send className="w-6 h-6 -ml-0.5" />
                 </motion.button>
               </form>
             ) : (
-              <div className="bg-black/40 border-dashed border-2 border-white/5 rounded-4xl p-10 text-center">
-                <p className="text-white/30 text-sm font-medium leading-relaxed italic">Erstelle unten ein Profil, um Signale an den Hub zu senden.</p>
+              <div className="bg-surface-elevated border-dashed border-2 border-border rounded-4xl p-10 text-center">
+                <p className="text-text/30 text-sm font-medium leading-relaxed italic">Erstelle unten ein Profil, um Signale an den Hub zu senden.</p>
               </div>
             )}
           </div>
@@ -910,16 +910,16 @@ export default function PublicInvite() {
               <div className="flex items-center justify-between px-10">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white/20 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-text/20 animate-pulse" />
                     <span className="micro-label">Teilnehmerliste</span>
                   </div>
-                  <h2 className="text-5xl sm:text-7xl font-serif font-black text-white tracking-tighter leading-none">
+                  <h2 className="text-5xl sm:text-7xl font-serif font-black text-text tracking-tighter leading-none">
                     Dabei
                   </h2>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                   <div className="text-6xl font-serif font-black text-white/5 leading-none">/0{data.participants.length}</div>
-                   <span className="micro-label !text-white/30 tracking-[0.4em]">Teilnehmer</span>
+                   <div className="text-6xl font-serif font-black text-text/5 leading-none">/0{data.participants.length}</div>
+                   <span className="micro-label !text-text/30 tracking-[0.4em]">Teilnehmer</span>
                 </div>
               </div>
               
@@ -930,32 +930,27 @@ export default function PublicInvite() {
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="flex items-center justify-between p-10 rounded-4xl premium-card border-white/[0.04] shadow-none hover:bg-white/[0.02] transition-colors group"
+                    className="flex items-center justify-between p-10 rounded-4xl premium-card border-border shadow-none hover:bg-surface-elevated transition-colors group"
                   >
                     <div className="flex items-center gap-10">
-                      <div className="w-20 h-20 rounded-3xl bg-white text-black flex items-center justify-center font-serif font-black text-4xl shadow-2xl group-hover:scale-105 transition-transform duration-500">
+                      <div className="w-20 h-20 rounded-3xl bg-surface-elevated text-text border border-border flex items-center justify-center font-serif font-black text-4xl shadow-xl group-hover:scale-105 transition-transform duration-500">
                         {p.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="space-y-2">
-                        <div className="font-black text-white text-3xl font-serif tracking-tighter leading-none">
+                        <div className="font-black text-text text-3xl font-serif tracking-tighter leading-none">
                           {p.name}
                         </div>
                         <div className="flex items-center gap-3">
-                          {p.status === 'yes' && <div className="micro-label !text-emerald-400">Einsatzbereit</div>}
+                          {p.status === 'yes' && <div className="micro-label !text-accent">Einsatzbereit</div>}
                           {p.status === 'maybe' && <div className="micro-label !text-amber-400">Unklar</div>}
                           {p.status === 'no' && <div className="micro-label !text-rose-400">Abgewiesen</div>}
                           {p.guests_count > 0 && (
-                            <div className="micro-label !text-white/20 ml-2 border-l border-white/5 pl-4">
+                            <div className="micro-label !text-text/30 ml-2 border-l border-border pl-4">
                               +{p.guests_count} Gäste
                             </div>
                           )}
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${
-                        p.status === 'yes' ? 'bg-emerald-400' : p.status === 'maybe' ? 'bg-amber-400' : 'bg-rose-400'
-                      } shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-500 group-hover:scale-150`} />
                     </div>
                   </motion.div>
                 ))}
@@ -969,39 +964,39 @@ export default function PublicInvite() {
               initial={{ opacity: 0, scale: 0.98 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="premium-card rounded-4xl p-10 sm:p-20 relative overflow-hidden shadow-none border-white/[0.08]"
+              className="premium-card rounded-4xl p-10 sm:p-20 relative overflow-hidden shadow-none border-border"
             >
-              <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white/[0.03] to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white/[0.02] to-transparent pointer-events-none" />
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-8">
-                   <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                   <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
                    <span className="micro-label uppercase tracking-[0.3em]">Identitäts-Protokoll</span>
                 </div>
-                <h2 className="text-5xl sm:text-7xl font-serif font-black text-white mb-8 tracking-tighter leading-none">Profil <span className="text-white/30 italic">Wählen</span></h2>
-                <p className="text-white/30 mb-16 font-medium leading-[1.3] text-xl tracking-tight max-w-sm italic">
+                <h2 className="text-5xl sm:text-7xl font-serif font-black text-text mb-8 tracking-tighter leading-none">Profil <span className="text-text/30 italic">Wählen</span></h2>
+                <p className="text-text/60 mb-16 font-medium leading-[1.3] text-xl tracking-tight max-w-sm italic">
                   Erstelle ein Profil, um deine Signale zu festigen und operative Updates zu erhalten.
                 </p>
                 
                 <form onSubmit={handleSetupProfile} className="space-y-10">
                   <div className="grid sm:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                      <span className="micro-label !text-white/10 pl-1">Name</span>
+                      <span className="micro-label !text-text/40 pl-1">Name</span>
                       <div className="relative group">
-                        <User className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-white/10 group-focus-within:text-white transition-all" />
+                        <User className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-text/30 group-focus-within:text-text transition-all" />
                         <input 
                           type="text" 
                           required 
                           value={setupUsername}
                           onChange={e => setSetupUsername(e.target.value)}
                           placeholder="z.B. agent.null"
-                          className="w-full bg-black/40 border border-white/5 rounded-3xl p-8 pl-16 text-white placeholder:text-white/10 focus:outline-none focus:border-white/20 transition-all text-lg font-serif italic"
+                          className="w-full bg-surface-elevated border border-border rounded-3xl p-8 pl-16 text-text placeholder:text-text/20 focus:outline-none focus:border-border/80 transition-all text-lg font-serif italic"
                         />
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <span className="micro-label !text-white/10 pl-1">Passwort</span>
+                      <span className="micro-label !text-text/40 pl-1">Passwort</span>
                       <div className="relative group">
-                        <Lock className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-white/10 group-focus-within:text-white transition-all" />
+                        <Lock className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-text/30 group-focus-within:text-text transition-all" />
                         <input 
                           type="password" 
                           required 
@@ -1009,7 +1004,7 @@ export default function PublicInvite() {
                           value={setupPassword}
                           onChange={e => setSetupPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full bg-black/40 border border-white/5 rounded-3xl p-8 pl-16 text-white placeholder:text-white/10 focus:outline-none focus:border-white/20 transition-all text-lg font-serif italic"
+                          className="w-full bg-surface-elevated border border-border rounded-3xl p-8 pl-16 text-text placeholder:text-text/20 focus:outline-none focus:border-border/80 transition-all text-lg font-serif italic"
                         />
                       </div>
                     </div>
@@ -1019,7 +1014,7 @@ export default function PublicInvite() {
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={isSettingUp}
-                    className="w-full bg-white text-black font-black py-8 rounded-[2rem] hover:bg-white/90 transition-all text-[11px] uppercase tracking-[0.4em] disabled:opacity-50 shadow-[0_24px_48px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="w-full bg-accent text-surface font-black py-8 rounded-[2rem] hover:bg-accent/90 transition-all text-[11px] uppercase tracking-[0.4em] disabled:opacity-50 shadow-xl active:scale-95"
                   >
                     {isSettingUp ? 'Initialisiere...' : 'Profil Erstellen'}
                   </motion.button>
@@ -1030,20 +1025,20 @@ export default function PublicInvite() {
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
-              className="premium-card rounded-4xl p-12 flex flex-col sm:flex-row items-center justify-between gap-12 border-white/[0.08] shadow-none py-16"
+              className="premium-card rounded-4xl p-12 flex flex-col sm:flex-row items-center justify-between gap-12 border-border shadow-none py-16"
             >
               <div className="flex items-center gap-10">
-                <div className="w-24 h-24 bg-white text-black rounded-3xl flex items-center justify-center shadow-[0_20px_40px_rgba(255,255,255,0.1)]">
+                <div className="w-24 h-24 bg-accent text-surface rounded-3xl flex items-center justify-center shadow-lg">
                   <CheckCircle className="w-12 h-12" />
                 </div>
                 <div className="text-left space-y-2">
-                  <div className="font-serif text-4xl font-black text-white tracking-tighter leading-none">Identität Bestätigt</div>
-                  <div className="text-white/20 font-medium text-lg leading-tight tracking-tight italic">Einsatzprotokoll {currentUser.username} läuft.</div>
+                  <div className="font-serif text-4xl font-black text-text tracking-tighter leading-none">Identität Bestätigt</div>
+                  <div className="text-text/50 font-medium text-lg leading-tight tracking-tight italic">Einsatzprotokoll {currentUser.username} läuft.</div>
                 </div>
               </div>
               <Link 
                 to="/dashboard"
-                className="w-full sm:w-auto text-black font-black text-[11px] bg-white hover:bg-white/90 px-16 py-8 rounded-[2rem] transition-all flex items-center justify-center gap-4 uppercase tracking-[0.4em] shadow-[0_20px_40px_rgba(255,255,255,0.1)]"
+                className="w-full sm:w-auto text-surface font-black text-[11px] bg-accent hover:bg-accent/90 px-16 py-8 rounded-[2rem] transition-all flex items-center justify-center gap-4 uppercase tracking-[0.4em] shadow-xl"
               >
                 Zum Dashboard <ArrowRight className="w-5 h-5" />
               </Link>
@@ -1053,18 +1048,18 @@ export default function PublicInvite() {
               initial={{ opacity: 0, scale: 0.98 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="premium-card rounded-4xl p-10 sm:p-20 relative overflow-hidden shadow-none border-white/[0.08]"
+              className="premium-card rounded-4xl p-10 sm:p-20 relative overflow-hidden shadow-none border-border"
             >
-              <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white/[0.03] to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-white/[0.02] to-transparent pointer-events-none" />
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-8">
                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)]" />
-                   <span className="micro-label !text-amber-400/60 uppercase tracking-[0.3em]">Login erforderlich</span>
+                   <span className="micro-label !text-amber-400/80 uppercase tracking-[0.3em]">Login erforderlich</span>
                 </div>
-                <h2 className="text-5xl sm:text-7xl font-serif font-black text-white mb-8 tracking-tighter leading-none">
-                  {invitee.is_admin_account ? 'Einsatzleitung' : 'Rückruf'} <span className="text-white/30 italic">{invitee.is_admin_account ? 'Bestätigen' : 'Notwendig'}</span>
+                <h2 className="text-5xl sm:text-7xl font-serif font-black text-text mb-8 tracking-tighter leading-none">
+                  {invitee.is_admin_account ? 'Einsatzleitung' : 'Rückruf'} <span className="text-text/30 italic">{invitee.is_admin_account ? 'Bestätigen' : 'Notwendig'}</span>
                 </h2>
-                <p className="text-white/30 mb-16 font-medium leading-[1.3] text-xl tracking-tight max-w-sm italic">
+                <p className="text-text/60 mb-16 font-medium leading-[1.3] text-xl tracking-tight max-w-sm italic">
                   {invitee.is_admin_account 
                     ? `Melde dich mit deinem Administrator-Konto (@${invitee.username || invitee.suggested_username}) an, um Zugriff zu erhalten.` 
                     : `Du hast bereits ein Profil für ${invitee.username || 'deinen Account'} erstellt. Melde dich an, um fortzufahren.`}
@@ -1072,16 +1067,16 @@ export default function PublicInvite() {
                 
                 <form onSubmit={handleLogin} className="space-y-10">
                   <div className="space-y-4">
-                    <span className="micro-label !text-white/10 pl-1">Passwort</span>
+                    <span className="micro-label !text-text/40 pl-1">Passwort</span>
                     <div className="relative group">
-                      <Lock className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-white/10 group-focus-within:text-white transition-all" />
+                      <Lock className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-text/30 group-focus-within:text-text transition-all" />
                       <input 
                         type="password" 
                         required 
                         value={loginPassword}
                         onChange={e => setLoginPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-black/40 border border-white/5 rounded-3xl p-8 pl-16 text-white placeholder:text-white/10 focus:outline-none focus:border-white/20 transition-all text-lg font-serif italic"
+                        className="w-full bg-surface-elevated border border-border rounded-3xl p-8 pl-16 text-text placeholder:text-text/20 focus:outline-none focus:border-border/80 transition-all text-lg font-serif italic"
                       />
                     </div>
                   </div>
@@ -1090,12 +1085,12 @@ export default function PublicInvite() {
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={isLoggingIn}
-                    className="w-full bg-white text-black font-black py-8 rounded-[2rem] hover:bg-white/90 transition-all text-[11px] uppercase tracking-[0.4em] disabled:opacity-50 shadow-[0_24px_48px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="w-full bg-text text-surface font-black py-8 rounded-[2rem] hover:opacity-90 transition-all text-[11px] uppercase tracking-[0.4em] disabled:opacity-50 shadow-xl active:scale-95"
                   >
                     {isLoggingIn ? 'Verifiziere...' : 'Einloggen'}
                   </motion.button>
                   <div className="text-center">
-                    <Link to="/login" className="text-[9px] font-black uppercase tracking-[0.2em] text-white/10 hover:text-white transition-colors">Anderer Account?</Link>
+                    <Link to="/login" className="text-[9px] font-black uppercase tracking-[0.2em] text-text/40 hover:text-text transition-colors">Anderer Account?</Link>
                   </div>
                 </form>
               </div>

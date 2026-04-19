@@ -34,9 +34,7 @@ export default function Login() {
       });
       
       if (res.ok) {
-        toast.success('Erfolgreich angemeldet', {
-          style: { background: '#333', color: '#fff', borderRadius: '12px' }
-        });
+        toast.success('Erfolgreich angemeldet');
         if (loginType === 'admin') {
           navigate('/');
         } else {
@@ -44,14 +42,10 @@ export default function Login() {
         }
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Login fehlgeschlagen', {
-          style: { background: '#333', color: '#fff', borderRadius: '12px' }
-        });
+        toast.error(data.error || 'Login fehlgeschlagen');
       }
     } catch (e) {
-      toast.error('Netzwerkfehler', {
-        style: { background: '#333', color: '#fff', borderRadius: '12px' }
-      });
+      toast.error('Netzwerkfehler');
     } finally {
       setIsLoading(false);
     }

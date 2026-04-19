@@ -76,7 +76,7 @@ export function useWebVitals(onReport?: (metric: PerformanceMetric) => void) {
     let clsValue = 0;
     const clsObserver = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (!entry.hadRecentInput) {
+        if (!(entry as any).hadRecentInput) {
           clsValue += (entry as any).value || 0;
           reportMetric({
             name: 'CLS',

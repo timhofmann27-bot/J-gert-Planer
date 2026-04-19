@@ -8,17 +8,17 @@
   --font-serif: "Cormorant Garamond", serif;
   
   /* Dark anthracite theme colors as default */
-  --color-brand: #ffffff;
-  --color-surface: #050505;
-  --color-surface-muted: #090909;
-  --color-surface-elevated: #0e0e0e;
-  --color-border: rgba(255, 255, 255, 0.06);
+  --color-brand: #f97316;
+  --color-surface: #121214; /* Deep Anthracite */
+  --color-surface-muted: #18181b; /* Elevated Anthracite */
+  --color-surface-elevated: #27272a; /* Lighter Anthracite */
+  --color-border: rgba(255, 255, 255, 0.08);
   --color-text: #ffffff;
-  --color-text-muted: #94a3b8;
-  --color-text-dim: #64748b;
+  --color-text-muted: #a1a1aa; /* Zinc-400 */
+  --color-text-dim: #71717a; /* Zinc-500 */
   
-  --color-accent: #ffffff;
-  --color-accent-muted: rgba(255, 255, 255, 0.1);
+  --color-accent: #f97316; /* Orange-500 */
+  --color-accent-muted: rgba(249, 115, 22, 0.15);
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
@@ -29,18 +29,19 @@
   --radius-4xl: 4rem;
 }
 
-/* Optional Light theme override if needed, but app defaults to dark anthrazit now */
+/* Light theme overrides */
 .light {
-  --color-brand: #0f172a;
-  --color-surface: #f8fafc;
+  --color-brand: #ea580c; /* Orange-600 */
+  --color-surface: #f4f4f5; /* Zinc-100 */
   --color-surface-muted: #ffffff;
   --color-surface-elevated: #ffffff;
-  --color-border: rgba(15, 23, 42, 0.08);
-  --color-text: #0f172a;
-  --color-text-muted: #475569;
-  --color-text-dim: #94a3b8;
-  --color-accent: #0f172a;
-  --color-accent-muted: rgba(15, 23, 42, 0.05);
+  --color-border: rgba(24, 24, 27, 0.08); /* Dark border for light mode */
+  --color-text: #18181b; /* Zinc-900 */
+  --color-text-muted: #52525b; /* Zinc-600 */
+  --color-text-dim: #a1a1aa; /* Zinc-400 */
+  
+  --color-accent: #ea580c; /* Orange-600 */
+  --color-accent-muted: rgba(234, 88, 12, 0.1);
 }
 
 html {

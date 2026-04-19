@@ -29,12 +29,13 @@ interface JTOrgaDB extends DBSchema {
   'sync-queue': {
     key: number;
     value: {
-      id: number;
+      id?: number;
       type: 'create' | 'update' | 'delete';
       entity: 'event' | 'person';
       data: any;
       timestamp: number;
     };
+    indexes: { 'timestamp': number };
   };
 }
 

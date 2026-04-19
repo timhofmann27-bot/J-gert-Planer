@@ -102,12 +102,13 @@ export async function setupNotifications() {
     
     const { title, body } = payload.notification || {};
     if (title && body) {
-      new Notification(title, {
+      const options: any = {
         body,
         icon: '/icon.svg',
         badge: '/icon.svg',
         vibrate: [200, 100, 200],
-      });
+      };
+      new Notification(title, options);
     }
   });
 }
