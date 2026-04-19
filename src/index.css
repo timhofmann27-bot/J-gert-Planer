@@ -211,7 +211,7 @@ body {
   @apply transition-all duration-300;
 }
 
-@utility glow-hover:hover {
+.glow-hover:hover {
   box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
 }
 
@@ -220,7 +220,7 @@ body {
   @apply relative overflow-hidden;
 }
 
-@utility ripple-container::after {
+.ripple-container::after {
   content: '';
   @apply absolute inset-0 bg-white/10 rounded-full scale-0 opacity-0 transition-all duration-500;
 }
