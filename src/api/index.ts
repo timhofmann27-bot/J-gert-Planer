@@ -17,6 +17,65 @@ if (!JWT_SECRET) {
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// Request ID middleware for tracing
+apiRouter.use((req: any, res: any, next: any) => {
+  req.requestId = crypto.randomUUID();
+  res.setHeader('X-Request-ID', req.requestId);
+  next();
+});
+
+// Global error handler - never leak internal errors
+apiRouter.use((err: any, req: any, res: any, next: any) => {
+  console.error(`[${req.requestId}] Error:`, err.message);
+  res.status(500).json({
+    error: 'Ein interner Fehler ist aufgetreten.',
+    requestId: req.requestId
+  });
+});
+
+// Content-Type validation middleware
+apiRouter.use((req: any, res: any, next: any) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.path !== '/health') {
+    const contentType = req.get('Content-Type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return res.status(415).json({ error: 'Content-Type must be application/json' });
+    }
+  }
+  next();
+});
+
+// Token blacklist for revocation
+db.exec(`
+  CREATE TABLE IF NOT EXISTS token_blacklist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT UNIQUE NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Audit log table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    user_type TEXT,
+    user_id INTEGER,
+    action TEXT NOT NULL,
+    details TEXT,
+    ip_address TEXT
+  )
+`);
+
+function logAudit(userType: string | null, userId: number | null, action: string, details: object, ipAddress: string | undefined) {
+  db.prepare('INSERT INTO audit_log (user_type, user_id, action, details, ip_address) VALUES (?, ?, ?, ?, ?)')
+    .run(userType, userId, action, JSON.stringify(details), ipAddress || null);
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 // --- RATE LIMITING ---
 // General API Rate Limiter
 const apiLimiter = rateLimit({
@@ -28,18 +87,69 @@ const apiLimiter = rateLimit({
 });
 apiRouter.use(apiLimiter);
 
-// Health check endpoint
+// Health check endpoints
 apiRouter.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  // Basic health check - always returns OK
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
+  });
+});
+
+apiRouter.get('/health/ready', (req, res) => {
+  // Readiness check - verifies all dependencies
+  try {
+    // Check database connection
+    db.prepare('SELECT 1').get();
+
+    res.json({
+      status: 'ready',
+      timestamp: new Date().toISOString(),
+      checks: {
+        database: 'ok'
+      }
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'not_ready',
+      timestamp: new Date().toISOString(),
+      checks: {
+        database: 'error'
+      }
+    });
+  }
+});
+
+apiRouter.get('/health/live', (req, res) => {
+  // Liveness check - is the process alive?
+  res.json({
+    status: 'alive',
+    timestamp: new Date().toISOString(),
+    pid: process.pid
+  });
 });
 
 // --- AUTH MIDDLEWARE ---
+const isTokenBlacklisted = (token: string): boolean => {
+  const tokenHash = hashToken(token);
+  const blacklisted = db.prepare('SELECT 1 FROM token_blacklist WHERE token_hash = ?').get(tokenHash);
+  return !!blacklisted;
+};
+
 const requireAuth = (req: any, res: any, next: any) => {
   const token = req.cookies.admin_token;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  if (isTokenBlacklisted(token)) {
+    return res.status(401).json({ error: 'Token has been revoked' });
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string };
     req.admin = decoded;
+    req.adminToken = token;
     next();
   } catch (err) {
     res.status(401).json({ error: 'Invalid token' });
@@ -51,10 +161,14 @@ const requirePersonAuth = (req: any, res: any, next: any) => {
   const adminToken = req.cookies.admin_token;
 
   if (personToken) {
+    if (isTokenBlacklisted(personToken)) {
+      return res.status(401).json({ error: 'Token has been revoked' });
+    }
     try {
       const decoded = jwt.verify(personToken, JWT_SECRET) as { id: number; name: string; type: string };
       if (decoded.type !== 'person') throw new Error('Not a person token');
       req.person = decoded;
+      req.personToken = personToken;
       return next();
     } catch (err) {
       // fall through
@@ -62,11 +176,15 @@ const requirePersonAuth = (req: any, res: any, next: any) => {
   }
 
   if (adminToken) {
+    if (isTokenBlacklisted(adminToken)) {
+      return res.status(401).json({ error: 'Token has been revoked' });
+    }
     try {
       const decoded = jwt.verify(adminToken, JWT_SECRET) as { id: number; username: string };
       const admin = db.prepare('SELECT person_id FROM admin_users WHERE id = ?').get(decoded.id) as { person_id: number } | undefined;
       if (admin?.person_id) {
         req.person = { id: admin.person_id, name: decoded.username, type: 'person' };
+        req.adminToken = adminToken;
         return next();
       }
     } catch (err) {
@@ -87,8 +205,35 @@ const loginLimiter = rateLimit({
   validate: false
 });
 
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each IP to 5 registration requests per hour
+  message: { error: 'Zu viele Registrierungsversuche. Bitte in einer Stunde erneut versuchen.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false
+});
+
+const registrationRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 registration requests per hour
+  message: { error: 'Zu viele Anfragen. Bitte in einer Stunde erneut versuchen.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false
+});
+
 // --- SCHEMAS ---
 const sanitizeText = (val: string) => sanitizeHtml(val, { allowedTags: [], allowedAttributes: {} });
+
+// Strong password validation: min 12 chars, uppercase, lowercase, number, special char
+const strongPassword = z.string()
+  .min(12, 'Passwort muss mindestens 12 Zeichen lang sein')
+  .max(100, 'Passwort ist zu lang')
+  .regex(/[A-Z]/, 'Passwort muss mindestens einen Großbuchstaben enthalten')
+  .regex(/[a-z]/, 'Passwort muss mindestens einen Kleinbuchstaben enthalten')
+  .regex(/[0-9]/, 'Passwort muss mindestens eine Zahl enthalten')
+  .regex(/[^A-Za-z0-9]/, 'Passwort muss mindestens ein Sonderzeichen enthalten');
 
 const loginSchema = z.object({
   username: z.string().min(1).max(50),
@@ -131,12 +276,12 @@ const settingsSchema = z.object({
   username: z.string().min(1, 'Benutzername ist erforderlich').max(50).transform(sanitizeText),
   avatar_url: z.string().url().optional().nullable(),
   currentPassword: z.string().max(100).optional(),
-  newPassword: z.string().max(100).optional()
+  newPassword: strongPassword.optional()
 });
 
 const setupProfileSchema = z.object({
   username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen lang sein').max(50).transform(sanitizeText),
-  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein').max(100)
+  password: strongPassword
 });
 
 const registrationRequestSchema = z.object({
@@ -145,9 +290,29 @@ const registrationRequestSchema = z.object({
 });
 
 const registerWithCodeSchema = z.object({
-  code: z.string().min(1, 'Code ist erforderlich').max(50),
+  code: z.string().min(64, 'Code ist erforderlich').max(64),
   username: z.string().min(3, 'Benutzername muss mindestens 3 Zeichen lang sein').max(50).transform(sanitizeText),
-  password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein').max(100)
+  password: strongPassword
+});
+
+const invitationStepSchema = z.object({
+  name: z.string().min(1).max(100).transform(sanitizeText),
+  message: z.string().min(1).max(2000).transform(sanitizeText),
+  scheduled_at: z.string().datetime().optional().nullable()
+});
+
+const checklistSchema = z.object({
+  item_name: z.string().min(1).max(100).transform(sanitizeText),
+  notes: z.string().max(500).optional().nullable().transform(v => v ? sanitizeText(v) : v)
+});
+
+const pollSchema = z.object({
+  question: z.string().min(1).max(200).transform(sanitizeText),
+  options: z.array(z.string().min(1).max(100).transform(sanitizeText)).min(2).max(10)
+});
+
+const messageSchema = z.object({
+  message: z.string().min(1).max(2000).transform(sanitizeHtml)
 });
 
 // --- AUTH ROUTES ---
@@ -156,13 +321,17 @@ authRouter.post('/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
     const user = db.prepare('SELECT * FROM admin_users WHERE username = ?').get(username) as any;
-    
+
+    const genericError = 'Ungültige Anmeldedaten oder Account gesperrt.';
+
     if (!user) {
-      return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+      logAudit('admin', null, 'LOGIN_FAILED', { reason: 'user_not_found', username }, req.ip);
+      return res.status(401).json({ error: genericError });
     }
 
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
-      return res.status(429).json({ error: 'Account ist vorübergehend gesperrt. Bitte später erneut versuchen.' });
+      logAudit('admin', user.id, 'LOGIN_FAILED', { reason: 'account_locked' }, req.ip);
+      return res.status(429).json({ error: genericError });
     }
 
     if (!bcrypt.compareSync(password, user.password_hash)) {
@@ -170,32 +339,49 @@ authRouter.post('/login', loginLimiter, (req, res) => {
       if (attempts >= 5) {
         const lockedUntil = new Date(Date.now() + 30 * 60000).toISOString();
         db.prepare('UPDATE admin_users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?').run(attempts, lockedUntil, user.id);
-        return res.status(429).json({ error: 'Zu viele Fehlversuche. Account ist nun für 30 Minuten gesperrt.' });
+        logAudit('admin', user.id, 'LOGIN_FAILED', { reason: 'account_locked_after_attempts' }, req.ip);
+        return res.status(429).json({ error: genericError });
       } else {
         db.prepare('UPDATE admin_users SET failed_login_attempts = ? WHERE id = ?').run(attempts, user.id);
-        return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+        logAudit('admin', user.id, 'LOGIN_FAILED', { reason: 'invalid_password' }, req.ip);
+        return res.status(401).json({ error: genericError });
       }
     }
 
     // Success - Reset counters
     db.prepare('UPDATE admin_users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?').run(user.id);
 
-    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('admin_token', token, { 
-      httpOnly: true, 
-      secure: true, 
-      sameSite: isProd ? 'lax' : 'none' 
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
+    res.cookie('admin_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      priority: 'high'
     });
+    logAudit('admin', user.id, 'LOGIN_SUCCESS', { username }, req.ip);
     res.json({ success: true });
   } catch (e) {
     res.status(400).json({ error: 'Ungültige Eingabedaten' });
   }
 });
 authRouter.post('/logout', (req, res) => {
+  const token = req.cookies.admin_token;
+  if (token) {
+    try {
+      const decoded = jwt.decode(token) as { exp: number };
+      const expiresAt = new Date(decoded.exp * 1000).toISOString();
+      db.prepare('INSERT INTO token_blacklist (token_hash, expires_at) VALUES (?, ?)').run(hashToken(token), expiresAt);
+    } catch (e) {
+      // Token invalid, nothing to blacklist
+    }
+    logAudit('admin', null, 'LOGOUT', {}, req.ip);
+  }
   res.clearCookie('admin_token', {
     httpOnly: true,
     secure: true,
-    sameSite: isProd ? 'lax' : 'none'
+    sameSite: 'lax',
+    path: '/'
   });
   res.json({ success: true });
 });
@@ -207,6 +393,23 @@ apiRouter.use('/auth', authRouter);
 // --- ADMIN ROUTES ---
 const adminRouter = Router();
 adminRouter.use(requireAuth);
+
+// CSRF protection for state-changing operations
+adminRouter.use((req: any, res: any, next: any) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    const csrfToken = req.headers['x-csrf-token'];
+    const origin = req.headers['origin'] || req.headers['referer'];
+
+    if (!origin && !csrfToken) {
+      return res.status(403).json({ error: 'CSRF protection: Origin or X-CSRF-Token required' });
+    }
+
+    if (isProd && origin && !origin.includes(req.get('host'))) {
+      return res.status(403).json({ error: 'CSRF protection: Invalid origin' });
+    }
+  }
+  next();
+});
 
 // Events
 adminRouter.get('/events', (req, res) => {
@@ -289,28 +492,31 @@ adminRouter.get('/events/:id/invitation-steps', (req, res) => {
 
 adminRouter.post('/events/:id/invitation-steps', (req, res) => {
   try {
-    const { name, message, scheduled_at } = req.body;
+    const { name, message, scheduled_at } = invitationStepSchema.parse(req.body);
     const stmt = db.prepare('INSERT INTO event_invitation_steps (event_id, name, message, scheduled_at) VALUES (?, ?, ?, ?)');
     const info = stmt.run(req.params.id, name, message, scheduled_at || null);
+    logAudit('admin', req.admin.id, 'INVITATION_STEP_CREATED', { event_id: req.params.id, step_id: info.lastInsertRowid }, req.ip);
     res.json({ id: info.lastInsertRowid });
   } catch (e: any) {
-    res.status(400).json({ error: 'Fehler beim Erstellen des Einladungsschritts' });
+    res.status(400).json({ error: e.errors?.[0]?.message || 'Fehler beim Erstellen des Einladungsschritts' });
   }
 });
 
 adminRouter.put('/events/:id/invitation-steps/:stepId', (req, res) => {
   try {
-    const { name, message, scheduled_at } = req.body;
+    const { name, message, scheduled_at } = invitationStepSchema.parse(req.body);
     const stmt = db.prepare('UPDATE event_invitation_steps SET name = ?, message = ?, scheduled_at = ? WHERE id = ? AND event_id = ?');
     stmt.run(name, message, scheduled_at || null, req.params.stepId, req.params.id);
+    logAudit('admin', req.admin.id, 'INVITATION_STEP_UPDATED', { event_id: req.params.id, step_id: req.params.stepId }, req.ip);
     res.json({ success: true });
   } catch (e: any) {
-    res.status(400).json({ error: 'Fehler beim Aktualisieren des Einladungsschritts' });
+    res.status(400).json({ error: e.errors?.[0]?.message || 'Fehler beim Aktualisieren des Einladungsschritts' });
   }
 });
 
 adminRouter.delete('/events/:id/invitation-steps/:stepId', (req, res) => {
   db.prepare('DELETE FROM event_invitation_steps WHERE id = ? AND event_id = ?').run(req.params.stepId, req.params.id);
+  logAudit('admin', req.admin.id, 'INVITATION_STEP_DELETED', { event_id: req.params.id, step_id: req.params.stepId }, req.ip);
   res.json({ success: true });
 });
 
@@ -354,7 +560,7 @@ adminRouter.post('/events/:id/invites', (req, res) => {
     const person = db.prepare('SELECT name, password_hash FROM persons WHERE id = ?').get(person_id) as any;
     if (!person) return res.status(404).json({ error: 'Person not found' });
 
-    const token = crypto.randomBytes(16).toString('hex');
+    const token = crypto.randomBytes(32).toString('hex');
     const stmt = db.prepare('INSERT INTO invitees (event_id, person_id, name_snapshot, token) VALUES (?, ?, ?, ?)');
     const info = stmt.run(req.params.id, person_id, person.name, token);
 
@@ -396,7 +602,7 @@ adminRouter.post('/events/:id/invites/bulk', (req, res) => {
         if (!existing) {
           const person = db.prepare('SELECT name, password_hash FROM persons WHERE id = ?').get(person_id) as any;
           if (person) {
-            const token = crypto.randomBytes(16).toString('hex');
+            const token = crypto.randomBytes(32).toString('hex');
             insert.run(eventId, person_id, person.name, token);
             if (person.password_hash) {
               insertNotif.run(person_id, 'Neue Einladung', `Du wurdest zu "${event.title}" eingeladen.`, `/invite/${token}`);
@@ -595,14 +801,19 @@ adminRouter.get('/events/:id/checklist', (req: any, res) => {
 });
 
 adminRouter.post('/events/:id/checklist', (req, res) => {
-  const { item_name, notes } = req.body;
-  if (!item_name) return res.status(400).json({ error: 'Name ist erforderlich' });
-  const info = db.prepare('INSERT INTO checklists (event_id, item_name, notes) VALUES (?, ?, ?)').run(req.params.id, item_name, notes || null);
-  res.json({ id: info.lastInsertRowid });
+  try {
+    const { item_name, notes } = checklistSchema.parse(req.body);
+    const info = db.prepare('INSERT INTO checklists (event_id, item_name, notes) VALUES (?, ?, ?)').run(req.params.id, item_name, notes || null);
+    logAudit('admin', req.admin.id, 'CHECKLIST_ITEM_CREATED', { event_id: req.params.id, item_id: info.lastInsertRowid }, req.ip);
+    res.json({ id: info.lastInsertRowid });
+  } catch (e: any) {
+    res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
+  }
 });
 
 adminRouter.delete('/events/:id/checklist/:itemId', (req, res) => {
   db.prepare('DELETE FROM checklists WHERE id = ? AND event_id = ?').run(req.params.itemId, req.params.id);
+  logAudit('admin', req.admin.id, 'CHECKLIST_ITEM_DELETED', { event_id: req.params.id, item_id: req.params.itemId }, req.ip);
   res.json({ success: true });
 });
 
@@ -621,18 +832,20 @@ adminRouter.get('/events/:id/polls', (req: any, res) => {
 });
 
 adminRouter.post('/events/:id/polls', (req, res) => {
-  const { question, options } = req.body;
-  if (!question || !options || !Array.isArray(options)) return res.status(400).json({ error: 'Frage und Optionen sind erforderlich' });
-  
-  db.transaction(() => {
+  try {
+    const { question, options } = pollSchema.parse(req.body);
+
     const pollInfo = db.prepare('INSERT INTO polls (event_id, question) VALUES (?, ?)').run(req.params.id, question);
     const pollId = pollInfo.lastInsertRowid;
     const insertOpt = db.prepare('INSERT INTO poll_options (poll_id, option_text) VALUES (?, ?)');
     for (const opt of options) {
       insertOpt.run(pollId, opt);
     }
-  })();
-  res.json({ success: true });
+    logAudit('admin', req.admin.id, 'POLL_CREATED', { event_id: req.params.id, poll_id: pollId }, req.ip);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
+  }
 });
 
 adminRouter.delete('/events/:id/polls/:pollId', (req, res) => {
@@ -653,25 +866,34 @@ adminRouter.get('/events/:id/messages', (req, res) => {
 });
 
 adminRouter.post('/events/:id/messages', (req, res) => {
-  const { message } = req.body;
-  if (!message || message.trim() === '') return res.status(400).json({ error: 'Nachricht fehlt' });
-  const info = db.prepare('INSERT INTO event_messages (event_id, is_admin, message) VALUES (?, 1, ?)').run(req.params.id, message.trim());
-  res.json({ id: info.lastInsertRowid });
+  try {
+    const { message } = messageSchema.parse(req.body);
+    const info = db.prepare('INSERT INTO event_messages (event_id, is_admin, message) VALUES (?, 1, ?)').run(req.params.id, message);
+    logAudit('admin', req.admin.id, 'EVENT_MESSAGE_SENT', { event_id: req.params.id, message_id: info.lastInsertRowid }, req.ip);
+    res.json({ id: info.lastInsertRowid });
+  } catch (e: any) {
+    res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
+  }
 });
 
 adminRouter.delete('/events/:id/messages/:msgId', (req, res) => {
   db.prepare('DELETE FROM event_messages WHERE id = ? AND event_id = ?').run(req.params.msgId, req.params.id);
+  logAudit('admin', req.admin.id, 'EVENT_MESSAGE_DELETED', { event_id: req.params.id, message_id: req.params.msgId }, req.ip);
   res.json({ success: true });
 });
 
 adminRouter.put('/registration-requests/:id/approve', (req, res) => {
   try {
-    const code = crypto.randomBytes(8).toString('hex').toUpperCase();
-    db.prepare("UPDATE registration_requests SET status = 'approved', code = ? WHERE id = ?").run(code, req.params.id);
-    
-    // Notify the user if we had a way (for now just in DB)
+    const code = crypto.randomBytes(32).toString('hex').toUpperCase();
     const request = db.prepare('SELECT * FROM registration_requests WHERE id = ?').get(req.params.id) as any;
-    
+
+    if (!request) {
+      return res.status(404).json({ error: 'Anfrage nicht gefunden' });
+    }
+
+    db.prepare("UPDATE registration_requests SET status = 'approved', code = ? WHERE id = ?").run(code, req.params.id);
+
+    logAudit('admin', req.admin.id, 'REGISTRATION_APPROVED', { request_id: req.params.id, name: request.name }, req.ip);
     res.json({ success: true, code });
   } catch (e: any) {
     res.status(400).json({ error: 'Fehler beim Genehmigen' });
@@ -715,10 +937,10 @@ adminRouter.post('/admins', (req, res) => {
   try {
     const { username, password } = z.object({
       username: z.string().min(3).max(50).transform(sanitizeText),
-      password: z.string().min(8).max(100)
+      password: strongPassword
     }).parse(req.body);
 
-    const hash = bcrypt.hashSync(password, 10);
+    const hash = bcrypt.hashSync(password, 14);
     const info = db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)').run(username, hash);
     const adminId = info.lastInsertRowid;
 
@@ -727,6 +949,7 @@ adminRouter.post('/admins', (req, res) => {
     const personId = personInfo.lastInsertRowid;
     db.prepare('UPDATE admin_users SET person_id = ? WHERE id = ?').run(personId, adminId);
 
+    logAudit('admin', req.admin.id, 'ADMIN_CREATED', { new_admin_id: adminId, username }, req.ip);
     res.json({ success: true, id: adminId });
   } catch (e: any) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -746,7 +969,7 @@ adminRouter.delete('/admins/:id', (req, res) => {
 
 adminRouter.put('/settings', (req: any, res) => {
   try {
-    const { username, avatar_url, currentPassword, newPassword } = settingsSchema.parse(req.body);
+    const { username, currentPassword, newPassword } = settingsSchema.parse(req.body);
 
     const user = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.admin.id) as any;
     if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
@@ -759,12 +982,22 @@ adminRouter.put('/settings', (req: any, res) => {
         return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
       }
 
-      const newHash = bcrypt.hashSync(newPassword, 10);
-      db.prepare('UPDATE admin_users SET username = ?, avatar_url = ?, password_hash = ? WHERE id = ?')
-        .run(username, avatar_url || null, newHash, req.admin.id);
+      // Revoke old tokens when password changes
+      if (req.adminToken) {
+        try {
+          const decoded = jwt.decode(req.adminToken) as { exp: number };
+          const expiresAt = new Date(decoded.exp * 1000).toISOString();
+          db.prepare('INSERT INTO token_blacklist (token_hash, expires_at) VALUES (?, ?)').run(hashToken(req.adminToken), expiresAt);
+        } catch (e) {}
+      }
+
+      const newHash = bcrypt.hashSync(newPassword, 14);
+      db.prepare('UPDATE admin_users SET username = ?, password_hash = ? WHERE id = ?')
+        .run(username, newHash, req.admin.id);
+      logAudit('admin', req.admin.id, 'PASSWORD_CHANGED', { username }, req.ip);
     } else {
-      db.prepare('UPDATE admin_users SET username = ?, avatar_url = ? WHERE id = ?')
-        .run(username, avatar_url || null, req.admin.id);
+      db.prepare('UPDATE admin_users SET username = ? WHERE id = ?')
+        .run(username, req.admin.id);
     }
 
     // Keep persons table in sync if username changed
@@ -772,11 +1005,28 @@ adminRouter.put('/settings', (req: any, res) => {
       db.prepare('UPDATE persons SET name = ? WHERE id = ?').run(username, user.person_id);
     }
 
-    const token = jwt.sign({ id: req.admin.id, username: username }, JWT_SECRET, { expiresIn: '7d' });
+    logAudit('admin', req.admin.id, 'SETTINGS_UPDATED', { username }, req.ip);
+    const token = jwt.sign({ id: req.admin.id, username: username }, JWT_SECRET, { expiresIn: '1d' });
     res.cookie('admin_token', token, {
       httpOnly: true,
       secure: true,
+      sameSite: 'lax',
+      path: '/',
+      priority: 'high'
+    });
+      httpOnly: true,
+      secure: true,
       sameSite: isProd ? 'lax' : 'none'
+=======
+    logAudit('admin', req.admin.id, 'SETTINGS_UPDATED', { username }, req.ip);
+    const token = jwt.sign({ id: req.admin.id, username: username }, JWT_SECRET, { expiresIn: '1d' });
+    res.cookie('admin_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      priority: 'high'
+>>>>>>> 86d7fb9 (feat: Comprehensive security hardening and production deployment setup)
     });
 
     res.json({ success: true });
@@ -802,7 +1052,7 @@ publicRouter.get('/profile', requirePersonAuth, (req: any, res) => {
 publicRouter.put('/profile', requirePersonAuth, (req: any, res) => {
   try {
     const { username, name, avatar_url, currentPassword, newPassword } = req.body;
-    
+
     const user = db.prepare('SELECT * FROM persons WHERE id = ?').get(req.person.id) as any;
     if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
 
@@ -813,15 +1063,26 @@ publicRouter.put('/profile', requirePersonAuth, (req: any, res) => {
       if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
         return res.status(401).json({ error: 'Aktuelles Passwort ist falsch' });
       }
-      
-      const newHash = bcrypt.hashSync(newPassword, 10);
+
+      // Revoke old tokens when password changes
+      if (req.personToken) {
+        try {
+          const decoded = jwt.decode(req.personToken) as { exp: number };
+          const expiresAt = new Date(decoded.exp * 1000).toISOString();
+          db.prepare('INSERT INTO token_blacklist (token_hash, expires_at) VALUES (?, ?)').run(hashToken(req.personToken), expiresAt);
+        } catch (e) {}
+      }
+
+      const newHash = bcrypt.hashSync(newPassword, 12);
       db.prepare('UPDATE persons SET username = ?, name = ?, avatar_url = ?, password_hash = ? WHERE id = ?')
         .run(username, name, avatar_url, newHash, req.person.id);
+      logAudit('person', req.person.id, 'PASSWORD_CHANGED', { username }, req.ip);
     } else {
       db.prepare('UPDATE persons SET username = ?, name = ?, avatar_url = ? WHERE id = ?')
         .run(username, name, avatar_url, req.person.id);
     }
 
+    logAudit('person', req.person.id, 'PROFILE_UPDATED', { username }, req.ip);
     res.json({ success: true });
   } catch (e: any) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -831,17 +1092,24 @@ publicRouter.put('/profile', requirePersonAuth, (req: any, res) => {
   }
 });
 
-publicRouter.post('/registration-request', (req, res) => {
+publicRouter.post('/registration-request', registrationRequestLimiter, (req, res) => {
   try {
+    // Honeypot field - if filled, it's a bot
+    if (req.body.website) {
+      // Silently accept but don't process (honeypot)
+      return res.json({ success: true });
+    }
+
     const { name, email } = registrationRequestSchema.parse(req.body);
     db.prepare("INSERT INTO registration_requests (name, email) VALUES (?, ?)").run(name, email || null);
-    
+
     // Notify admin
     db.prepare(`
       INSERT INTO notifications (user_type, title, message, link)
       VALUES ('admin', 'Neue Registrierungsanfrage', ?, '/registration-requests')
     `).run(`${name} möchte Mitglied werden.`);
 
+    logAudit(null, null, 'REGISTRATION_REQUEST', { name, email }, req.ip);
     res.json({ success: true });
   } catch (e: any) {
     res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
@@ -857,7 +1125,7 @@ publicRouter.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Ungültiger oder nicht genehmigter Registrierungscode' });
     }
 
-    const hash = bcrypt.hashSync(password, 10);
+    const hash = bcrypt.hashSync(password, 14);
     
     const personId = db.transaction(() => {
       // Create person
@@ -876,11 +1144,13 @@ publicRouter.post('/register', (req, res) => {
       return newId;
     })();
 
-    const token = jwt.sign({ id: personId, name: request.name, type: 'person' }, JWT_SECRET, { expiresIn: '30d' });
-    res.cookie('person_token', token, { 
-      httpOnly: true, 
-      secure: true, 
-      sameSite: isProd ? 'lax' : 'none' 
+    const token = jwt.sign({ id: personId, name: request.name, type: 'person' }, JWT_SECRET, { expiresIn: '7d' });
+    res.cookie('person_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      priority: 'high'
     });
 
     res.json({ success: true });
@@ -896,13 +1166,17 @@ publicRouter.post('/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
     const person = db.prepare('SELECT * FROM persons WHERE username = ? OR name = ?').get(username, username) as any;
-    
+
+    const genericError = 'Ungültige Anmeldedaten oder Account gesperrt.';
+
     if (!person || !person.password_hash) {
-      return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+      logAudit('person', null, 'LOGIN_FAILED', { reason: 'user_not_found_or_no_password', username }, req.ip);
+      return res.status(401).json({ error: genericError });
     }
 
     if (person.locked_until && new Date(person.locked_until) > new Date()) {
-      return res.status(429).json({ error: 'Account ist vorübergehend gesperrt. Bitte später erneut versuchen.' });
+      logAudit('person', person.id, 'LOGIN_FAILED', { reason: 'account_locked' }, req.ip);
+      return res.status(429).json({ error: genericError });
     }
 
     if (!bcrypt.compareSync(password, person.password_hash)) {
@@ -910,22 +1184,27 @@ publicRouter.post('/login', loginLimiter, (req, res) => {
       if (attempts >= 5) {
         const lockedUntil = new Date(Date.now() + 30 * 60000).toISOString();
         db.prepare('UPDATE persons SET failed_login_attempts = ?, locked_until = ? WHERE id = ?').run(attempts, lockedUntil, person.id);
-        return res.status(429).json({ error: 'Zu viele Fehlversuche. Account ist nun für 30 Minuten gesperrt.' });
+        logAudit('person', person.id, 'LOGIN_FAILED', { reason: 'account_locked_after_attempts' }, req.ip);
+        return res.status(429).json({ error: genericError });
       } else {
         db.prepare('UPDATE persons SET failed_login_attempts = ? WHERE id = ?').run(attempts, person.id);
-        return res.status(401).json({ error: 'Ungültige Anmeldedaten' });
+        logAudit('person', person.id, 'LOGIN_FAILED', { reason: 'invalid_password' }, req.ip);
+        return res.status(401).json({ error: genericError });
       }
     }
 
     // Success - Reset counters
     db.prepare('UPDATE persons SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?').run(person.id);
 
-    const token = jwt.sign({ id: person.id, name: person.name, type: 'person' }, JWT_SECRET, { expiresIn: '30d' });
-    res.cookie('person_token', token, { 
-      httpOnly: true, 
-      secure: true, 
-      sameSite: isProd ? 'lax' : 'none' 
+    const token = jwt.sign({ id: person.id, name: person.name, type: 'person' }, JWT_SECRET, { expiresIn: '7d' });
+    res.cookie('person_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      priority: 'high'
     });
+    logAudit('person', person.id, 'LOGIN_SUCCESS', { username }, req.ip);
     res.json({ success: true });
   } catch (e) {
     res.status(400).json({ error: 'Ungültige Eingabedaten' });
@@ -933,10 +1212,22 @@ publicRouter.post('/login', loginLimiter, (req, res) => {
 });
 
 publicRouter.post('/logout', (req, res) => {
+  const token = req.cookies.person_token;
+  if (token) {
+    try {
+      const decoded = jwt.decode(token) as { exp: number };
+      const expiresAt = new Date(decoded.exp * 1000).toISOString();
+      db.prepare('INSERT INTO token_blacklist (token_hash, expires_at) VALUES (?, ?)').run(hashToken(token), expiresAt);
+    } catch (e) {
+      // Token invalid, nothing to blacklist
+    }
+    logAudit('person', null, 'LOGOUT', {}, req.ip);
+  }
   res.clearCookie('person_token', {
     httpOnly: true,
     secure: true,
-    sameSite: isProd ? 'lax' : 'none'
+    sameSite: 'lax',
+    path: '/'
   });
   res.json({ success: true });
 });
@@ -1028,13 +1319,17 @@ publicRouter.get('/invite/:token', (req, res) => {
 });
 
 publicRouter.post('/invite/:token/messages', (req, res) => {
-  const { message } = req.body;
-  if (!message || message.trim() === '') return res.status(400).json({ error: 'Nachricht fehlt' });
-  const invitee = db.prepare('SELECT event_id, person_id FROM invitees WHERE token = ?').get(req.params.token) as any;
-  if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
-  
-  const info = db.prepare('INSERT INTO event_messages (event_id, person_id, message) VALUES (?, ?, ?)').run(invitee.event_id, invitee.person_id, message.trim());
-  res.json({ id: info.lastInsertRowid });
+  try {
+    const { message } = messageSchema.parse(req.body);
+    const invitee = db.prepare('SELECT event_id, person_id FROM invitees WHERE token = ?').get(req.params.token) as any;
+    if (!invitee) return res.status(404).json({ error: 'Einladung nicht gefunden' });
+
+    const info = db.prepare('INSERT INTO event_messages (event_id, person_id, message) VALUES (?, ?, ?)').run(invitee.event_id, invitee.person_id, message);
+    logAudit('person', invitee.person_id, 'EVENT_MESSAGE_SENT', { event_id: invitee.event_id, message_id: info.lastInsertRowid }, req.ip);
+    res.json({ id: info.lastInsertRowid });
+  } catch (e: any) {
+    res.status(400).json({ error: e.errors?.[0]?.message || 'Ungültige Eingabedaten' });
+  }
 });
 
 publicRouter.delete('/invite/:token/messages/:msgId', (req, res) => {
@@ -1092,15 +1387,17 @@ publicRouter.post('/invite/:token/setup-profile', (req, res) => {
     const person = db.prepare('SELECT * FROM persons WHERE id = ?').get(invitee.person_id) as any;
     if (person.password_hash) return res.status(400).json({ error: 'Profil bereits erstellt' });
 
-    const hash = bcrypt.hashSync(password, 10);
+    const hash = bcrypt.hashSync(password, 14);
     db.prepare('UPDATE persons SET username = ?, password_hash = ? WHERE id = ?').run(username, hash, invitee.person_id);
 
     // Auto login after setup
-    const token = jwt.sign({ id: person.id, name: person.name, type: 'person' }, JWT_SECRET, { expiresIn: '30d' });
-    res.cookie('person_token', token, { 
-      httpOnly: true, 
-      secure: true, 
-      sameSite: isProd ? 'lax' : 'none' 
+    const token = jwt.sign({ id: person.id, name: person.name, type: 'person' }, JWT_SECRET, { expiresIn: '7d' });
+    res.cookie('person_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      priority: 'high'
     });
 
     res.json({ success: true });

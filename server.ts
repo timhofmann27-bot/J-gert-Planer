@@ -14,10 +14,30 @@ async function startServer() {
 
   // Security headers
   app.use(helmet({
-    contentSecurityPolicy: false, // Disabled to prevent blocking inline styles/scripts in Vite/React
-    crossOriginEmbedderPolicy: false // Disabled for map tiles (Leaflet)
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https://*.tile.openstreetmap.org"],
+        connectSrc: ["'self'", "https://*.sentry.io"],
+        fontSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: []
+      }
+    },
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    permissionsPolicy: {
+      camera: [],
+      microphone: [],
+      geolocation: []
+    }
   }));
-  app.disable('x-powered-by'); // Security: hide Express signature
+  app.disable('x-powered-by');
 
   app.use(express.json({ limit: '1mb' })); // Limit JSON payload size to prevent DoS
   app.use(cookieParser());

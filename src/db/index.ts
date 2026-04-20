@@ -12,6 +12,14 @@ if (!fs.existsSync(dataDir)) {
 const dbPath = path.join(dataDir, 'data.db');
 export const db = new Database(dbPath);
 
+// Set restrictive permissions on database directory and files
+try {
+  fs.chmodSync(dataDir, 0o700);
+  fs.chmodSync(dbPath, 0o600);
+} catch (e) {
+  console.warn('Could not set restrictive permissions on database files:', e);
+}
+
 db.pragma('journal_mode = WAL');
 
 // Initialize database schema
@@ -228,14 +236,21 @@ try {
 }
 
 // Create default admins if not exists
+const adminPassword = process.env.ADMIN_PASSWORD;
+if (!adminPassword) {
+  console.error('FATAL ERROR: ADMIN_PASSWORD environment variable is required to initialize the database.');
+  console.error('Please set the ADMIN_PASSWORD environment variable before starting the server.');
+  process.exit(1);
+}
+
 const defaultAdmins = [
-  { username: 'admin', password: process.env.ADMIN_PASSWORD || 'admin123' }
+  { username: 'admin', password: adminPassword }
 ];
 
 for (const admin of defaultAdmins) {
   const exists = db.prepare('SELECT 1 FROM admin_users WHERE username = ?').get(admin.username);
   if (!exists) {
-    const hash = bcrypt.hashSync(admin.password, 10);
+    const hash = bcrypt.hashSync(admin.password, 12);
     db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)').run(admin.username, hash);
     console.log(`Admin created: ${admin.username}`);
   }
