@@ -19,10 +19,16 @@ jobs:
           cache: 'npm'
       
       - name: Install dependencies
-        run: npm ci
+        run: |
+          set -x
+          npm install
       
       - name: TypeScript check
-        run: npm run lint
+        run: |
+          set -x
+          npx tsc --noEmit
       
       - name: Build application
-        run: npm run build
+        run: |
+          set -x
+          npm run build
